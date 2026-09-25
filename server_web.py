@@ -1,6 +1,7 @@
 import asyncio
 import os
 import json
+import secrets
 import websockets
 
 from database import (
@@ -21,46 +22,60 @@ from rooms import (
 init_db()
 
 
-# Connected clients map:
+# ============================================================
+# SERVER STATE
+# ============================================================
+
 # { room_id: set(websocket_connections) }
 ROOMS = {}
 
-
-# Room expiry tasks:
 # { room_id: asyncio.Task }
 ROOM_EXPIRY_TASKS = {}
 
+# { session_token: session_data }
+#
+# session_data:
+# {
+#     "username": username,
+#     "room_id": room_id,
+#     "websocket": websocket or None
+# }
+SESSIONS = {}
 
-# 12 minutes = 720 seconds
+
+# 12 minutes
 ROOM_IDLE_TIMEOUT = 12 * 60
 
 
+# ============================================================
+# ROOM EXPIRY
+# ============================================================
+
 async def expire_room(room_id):
-    """
-    Room empty hone ke baad 12 minutes wait karega.
-    Agar is duration mein koi user wapas nahi aaya,
-    to room aur uski chat history delete ho jayegi.
-    """
 
     try:
         await asyncio.sleep(ROOM_IDLE_TIMEOUT)
 
-        # Check karo ki room abhi bhi empty hai
+        # Room abhi bhi empty hai?
         if room_id in ROOMS and not ROOMS[room_id]:
 
-            # Room ki chat history delete
+            # Chat history delete
             delete_chat_history(room_id)
 
             # Room active list se remove
             remove_room(room_id)
 
-            # Server memory se room remove
+            # Server memory se remove
             del ROOMS[room_id]
+
+            # Expired room se associated sessions ka room clear
+            for session in SESSIONS.values():
+                if session["room_id"] == room_id:
+                    session["room_id"] = None
 
             print(f"[-] Room {room_id} expired after 12 minutes.")
 
     except asyncio.CancelledError:
-        # User room mein wapas aa gaya
         pass
 
     finally:
@@ -68,11 +83,7 @@ async def expire_room(room_id):
 
 
 def start_room_expiry(room_id):
-    """
-    Empty room ke liye 12-minute expiry timer start karta hai.
-    """
 
-    # Agar pehle se timer hai to cancel karo
     old_task = ROOM_EXPIRY_TASKS.get(room_id)
 
     if old_task and not old_task.done():
@@ -84,9 +95,6 @@ def start_room_expiry(room_id):
 
 
 def cancel_room_expiry(room_id):
-    """
-    User room mein wapas aane par expiry timer cancel karta hai.
-    """
 
     task = ROOM_EXPIRY_TASKS.pop(room_id, None)
 
@@ -94,25 +102,31 @@ def cancel_room_expiry(room_id):
         task.cancel()
 
 
+# ============================================================
+# ROOM CONNECTION MANAGEMENT
+# ============================================================
+
 def remove_connection_from_room(websocket, room_id):
-    """
-    WebSocket ko room se safely remove karta hai.
-    """
 
     if room_id not in ROOMS:
         return
 
     ROOMS[room_id].discard(websocket)
 
-    # Agar room completely empty ho gaya
+    # Room empty ho gaya
     if not ROOMS[room_id]:
         start_room_expiry(room_id)
 
+
+# ============================================================
+# HANDLER
+# ============================================================
 
 async def handler(websocket):
 
     current_room = None
     current_user = None
+    current_session_token = None
 
     try:
 
@@ -128,20 +142,33 @@ async def handler(websocket):
 
             if action == "LOGIN":
 
-                user = data.get("username")
-                pwd = data.get("password")
+                user = data.get("username", "").strip()
+                pwd = data.get("password", "")
 
                 if verify_user(user, pwd):
 
+                    # New secure session token
+                    session_token = secrets.token_urlsafe(32)
+
+                    SESSIONS[session_token] = {
+                        "username": user,
+                        "room_id": None,
+                        "websocket": websocket
+                    }
+
                     current_user = user
+                    current_session_token = session_token
 
                     await websocket.send(
                         json.dumps({
                             "status": "SUCCESS",
                             "type": "LOGIN_RES",
-                            "user": user
+                            "user": user,
+                            "session_token": session_token
                         })
                     )
+
+                    print(f"[+] {user} logged in.")
 
                 else:
 
@@ -154,12 +181,96 @@ async def handler(websocket):
 
 
             # ==================================================
-            # 2. CREATE ROOM
+            # 2. RESTORE SESSION
+            # ==================================================
+
+            elif action == "RESTORE_SESSION":
+
+                session_token = data.get("session_token")
+
+                session = SESSIONS.get(session_token)
+
+                if session:
+
+                    # Same session ko new WebSocket se bind karo
+                    current_user = session["username"]
+                    current_session_token = session_token
+
+                    old_websocket = session.get("websocket")
+
+                    session["websocket"] = websocket
+
+                    # Agar old socket alag tha, usse room se remove
+                    if old_websocket and old_websocket != websocket:
+
+                        old_room = session.get("room_id")
+
+                        if old_room:
+                            remove_connection_from_room(
+                                old_websocket,
+                                old_room
+                            )
+
+
+                    current_room = session.get("room_id")
+
+                    # Agar room abhi bhi valid hai
+                    if current_room and room_exists(current_room):
+
+                        cancel_room_expiry(current_room)
+
+                        if current_room not in ROOMS:
+                            ROOMS[current_room] = set()
+
+                        ROOMS[current_room].add(websocket)
+
+                        history = get_chat_history(current_room)
+
+                        await websocket.send(
+                            json.dumps({
+                                "type": "SESSION_RESTORED",
+                                "status": "SUCCESS",
+                                "user": current_user,
+                                "room_id": current_room,
+                                "history": history
+                            })
+                        )
+
+                        print(
+                            f"[+] Session restored: "
+                            f"{current_user} -> room {current_room}"
+                        )
+
+                    else:
+
+                        current_room = None
+                        session["room_id"] = None
+
+                        await websocket.send(
+                            json.dumps({
+                                "type": "SESSION_RESTORED",
+                                "status": "SUCCESS",
+                                "user": current_user,
+                                "room_id": None
+                            })
+                        )
+
+                else:
+
+                    await websocket.send(
+                        json.dumps({
+                            "type": "SESSION_RESTORED",
+                            "status": "FAILED"
+                        })
+                    )
+
+
+            # ==================================================
+            # 3. CREATE ROOM
             # ==================================================
 
             elif action == "CREATE_ROOM":
 
-                # Login required
                 if not current_user:
 
                     await websocket.send(
@@ -171,8 +282,7 @@ async def handler(websocket):
                     continue
 
 
-                # Agar user already kisi room mein hai,
-                # pehle us room se remove karo
+                # Existing room se remove
                 if current_room:
 
                     remove_connection_from_room(
@@ -183,21 +293,18 @@ async def handler(websocket):
                     current_room = None
 
 
-                # New unique 6-digit numeric room
+                # New 6-digit room
                 room_id = generate_room_id()
 
-
-                # Room create
                 ROOMS[room_id] = {websocket}
 
-
-                # Current user ko room assign
                 current_room = room_id
 
+                # Session mein room save
+                if current_session_token in SESSIONS:
+                    SESSIONS[current_session_token]["room_id"] = room_id
 
-                # Safety: agar expiry task tha to cancel
                 cancel_room_expiry(room_id)
-
 
                 await websocket.send(
                     json.dumps({
@@ -206,19 +313,17 @@ async def handler(websocket):
                     })
                 )
 
-
                 print(
                     f"[+] Room {room_id} created by {current_user}"
                 )
 
 
             # ==================================================
-            # 3. JOIN ROOM
+            # 4. JOIN ROOM
             # ==================================================
 
             elif action == "JOIN_ROOM":
 
-                # Login required
                 if not current_user:
 
                     await websocket.send(
@@ -230,15 +335,14 @@ async def handler(websocket):
                     continue
 
 
-                room_id = str(data.get("room_id", "")).strip()
+                room_id = str(
+                    data.get("room_id", "")
+                ).strip()
 
 
-                # Room check
                 if room_exists(room_id):
 
-
-                    # Agar user kisi doosre room mein hai,
-                    # pehle usse leave karo
+                    # Previous room se remove
                     if current_room and current_room != room_id:
 
                         remove_connection_from_room(
@@ -246,31 +350,24 @@ async def handler(websocket):
                             current_room
                         )
 
-                        current_room = None
 
-
-                    # Agar room server memory mein nahi hai
-                    # to empty room set create karo
                     if room_id not in ROOMS:
-
                         ROOMS[room_id] = set()
 
 
-                    # Expiry timer cancel
+                    # Expiry cancel
                     cancel_room_expiry(room_id)
 
-
-                    # User ko room mein add
+                    # Add user
                     ROOMS[room_id].add(websocket)
 
-
-                    # Current room update
                     current_room = room_id
 
+                    # Session mein room save
+                    if current_session_token in SESSIONS:
+                        SESSIONS[current_session_token]["room_id"] = room_id
 
-                    # Previous chat history
                     history = get_chat_history(room_id)
-
 
                     await websocket.send(
                         json.dumps({
@@ -280,11 +377,9 @@ async def handler(websocket):
                         })
                     )
 
-
                     print(
                         f"[+] {current_user} joined room {room_id}"
                     )
-
 
                 else:
 
@@ -296,7 +391,7 @@ async def handler(websocket):
 
 
             # ==================================================
-            # 4. EXIT ROOM
+            # 5. EXIT ROOM
             # ==================================================
 
             elif action == "EXIT_ROOM":
@@ -305,22 +400,21 @@ async def handler(websocket):
 
                     room_id = current_room
 
-
                     remove_connection_from_room(
                         websocket,
                         room_id
                     )
 
-
                     current_room = None
 
+                    if current_session_token in SESSIONS:
+                        SESSIONS[current_session_token]["room_id"] = None
 
                     await websocket.send(
                         json.dumps({
                             "type": "ROOM_EXITED"
                         })
                     )
-
 
                     print(
                         f"[-] {current_user} exited room {room_id}"
@@ -336,12 +430,11 @@ async def handler(websocket):
 
 
             # ==================================================
-            # 5. SEND MESSAGE
+            # 6. SEND MESSAGE
             # ==================================================
 
             elif action == "SEND_MSG":
 
-                # Login + room required
                 if not current_user or not current_room:
 
                     await websocket.send(
@@ -353,15 +446,15 @@ async def handler(websocket):
                     continue
 
 
-                msg = str(data.get("message", "")).strip()
+                msg = str(
+                    data.get("message", "")
+                ).strip()
 
 
-                # Empty message ignore
                 if not msg:
                     continue
 
 
-                # Save message
                 save_message(
                     current_room,
                     current_user,
@@ -369,7 +462,6 @@ async def handler(websocket):
                 )
 
 
-                # Broadcast message
                 broadcast_data = json.dumps({
                     "type": "NEW_MSG",
                     "sender": current_user,
@@ -379,31 +471,63 @@ async def handler(websocket):
 
                 if current_room in ROOMS:
 
-                    # list() use kar rahe hain taaki
-                    # set change hone par error na aaye
                     for conn in list(ROOMS[current_room]):
 
                         try:
-
                             await conn.send(
                                 broadcast_data
                             )
 
                         except Exception:
-
                             pass
+
+
+            # ==================================================
+            # 7. LOGOUT
+            # ==================================================
+
+            elif action == "LOGOUT":
+
+                if current_session_token:
+
+                    session = SESSIONS.get(
+                        current_session_token
+                    )
+
+                    if session:
+
+                        room_id = session.get("room_id")
+
+                        if room_id:
+                            remove_connection_from_room(
+                                websocket,
+                                room_id
+                            )
+
+                        del SESSIONS[
+                            current_session_token
+                        ]
+
+
+                current_user = None
+                current_room = None
+                current_session_token = None
+
+                await websocket.send(
+                    json.dumps({
+                        "type": "LOGOUT_SUCCESS"
+                    })
+                )
 
 
     except Exception as e:
 
-        print(
-            f"[!] Connection error: {e}"
-        )
+        print(f"[!] Connection error: {e}")
 
 
     finally:
 
-        # Disconnect hone par user ko room se remove karo
+        # Disconnect par room se remove
         if current_room:
 
             remove_connection_from_room(
@@ -411,18 +535,28 @@ async def handler(websocket):
                 current_room
             )
 
+        # Session ko destroy nahi karna.
+        # Refresh ke liye token valid rahega.
+        if current_session_token in SESSIONS:
 
-            print(
-                f"[-] {current_user} disconnected from room {current_room}"
-            )
+            SESSIONS[
+                current_session_token
+            ]["websocket"] = None
 
+        print(
+            f"[-] {current_user} WebSocket disconnected."
+        )
+
+
+# ============================================================
+# SERVER START
+# ============================================================
 
 async def main():
 
     port = int(
         os.environ.get("PORT", 8000)
     )
-
 
     async with websockets.serve(
         handler,
@@ -433,7 +567,6 @@ async def main():
         print(
             f"[+] WEB SOCKET SERVER RUNNING ON PORT {port}!"
         )
-
 
         await asyncio.Future()
 
