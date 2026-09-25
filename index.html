@@ -130,10 +130,7 @@
         ? 'ws://' + location.hostname + ':8000'
         : 'wss://chat-app-fnl0.onrender.com';
 
-    ws = new WebSocket(wsUrl); 
-                        : protocol + location.hostname;
-
-            ws = new WebSocket(wsUrl);
+    ws = new WebSocket(wsUrl);
 
             ws.onmessage = (event) => {
                 let data = JSON.parse(event.data);
