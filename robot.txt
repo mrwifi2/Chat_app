@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://teshtab.pages.dev/sitemap.xml
