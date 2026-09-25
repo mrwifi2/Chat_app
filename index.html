@@ -465,6 +465,16 @@ function clearMessage(id){
 document.getElementById(id).textContent="";
 }
 
+function toggleFullscreen(){
+if(!document.fullscreenElement){
+document.documentElement.requestFullscreen().catch(function(){
+document.getElementById("connection-status").textContent="FULLSCREEN BLOCKED";
+});
+}else{
+document.exitFullscreen();
+}
+}
+
 </script>
 </body>
 </html>
