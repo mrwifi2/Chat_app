@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Termux Web Chat App</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
+        .card { background: #1e1e1e; max-width: 400px; margin: auto; padding: 20px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        input, button { width: 90%; padding: 10px; margin: 8px 0; border-radius: 5px; border: none; font-size: 16px; }
+        input { background: #2a2a2a; color: white; }
+        button { background: #008cba; color: white; cursor: pointer; font-weight: bold; }
+        button:hover { background: #005f73; }
+        #chat-box { height: 250px; overflow-y: auto; background: #000; text-align: left; padding: 10px; margin-bottom: 10px; border-radius: 5px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+    <!-- AUTH SCREEN -->
+    <div id="auth-screen" class="card">
+        <h2>Chat App Login</h2>
+        <input type="text" id="username" placeholder="Username">
+        <input type="password" id="password" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <button onclick="register()" style="background: #4CAF50;">Register</button>
+    </div>
+
+    <!-- HOME SCREEN -->
+    <div id="home-screen" class="card hidden">
+        <h2 id="welcome-msg"></h2>
+        <button onclick="createRoom()">Create New Room</button>
+        <hr>
+        <input type="text" id="room-input" placeholder="Enter Room ID">
+        <button onclick="joinRoom()">Join Room</button>
+    </div>
+
+    <!-- CHAT SCREEN -->
+    <div id="chat-screen" class="card hidden">
+        <h3 id="room-header"></h3>
+        <div id="chat-box"></div>
+        <input type="text" id="msg-input" placeholder="Type message...">
+        <button onclick="sendMsg()">Send</button>
+    </div>
+
+    <script>
+        let ws;
+        let currentUser = "";
+
+        function connect() {
+            ws = new WebSocket(`ws://${location.hostname
