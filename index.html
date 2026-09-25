@@ -1,1055 +1,470 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Chat App</title>
-
-    <style>
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI",
-                         Roboto, Helvetica, Arial, sans-serif;
-        }
-
-
-        body {
-            background-color: #0b141a;
-            color: #e9edef;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-
-        .app-container {
-            width: 100%;
-            max-width: 450px;
-            height: 100vh;
-            max-height: 700px;
-            background: #111b21;
-            display: flex;
-            flex-direction: column;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-        }
-
-
-        .header {
-            background: #202c33;
-            padding: 15px;
-            text-align: center;
-            font-size: 18px;
-            font-weight: bold;
-            border-bottom: 1px solid #222d34;
-            color: #00a884;
-        }
-
-
-        .screen {
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            justify-content: center;
-            height: 100%;
-        }
-
-
-        .hidden {
-            display: none !important;
-        }
-
-
-        input {
-            width: 100%;
-            padding: 12px 16px;
-            background: #2a3942;
-            border: none;
-            outline: none;
-            border-radius: 8px;
-            color: #e9edef;
-            font-size: 15px;
-        }
-
-
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #00a884;
-            border: none;
-            border-radius: 8px;
-            color: #111b21;
-            font-weight: bold;
-            font-size: 15px;
-            cursor: pointer;
-            transition: 0.2s;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
-            min-height: 45px;
-        }
-
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-
-        .btn-secondary {
-            background: #202c33;
-            color: #00a884;
-            border: 1px solid #00a884;
-        }
-
-
-        .spinner {
-            width: 18px;
-            height: 18px;
-            border: 3px solid rgba(17, 27, 33, 0.3);
-            border-radius: 50%;
-            border-top-color: #111b21;
-            animation: spin 0.8s linear infinite;
-            display: none;
-        }
-
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-
-        /* STARTUP SCREEN */
-
-        #startup-screen {
-            position: fixed;
-            inset: 0;
-            background: #0b141a;
-            color: #00a884;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 16px;
-            z-index: 9999;
-        }
-
-
-        .chat-header {
-            background: #202c33;
-            padding: 12px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            border-bottom: 1px solid #222d34;
-        }
-
-
-        .chat-body {
-            flex: 1;
-            padding: 16px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-            background-image: radial-gradient(
-                #202c33 1px,
-                transparent 0
-            );
-            background-size: 16px 16px;
-        }
-
-
-        .msg-bubble {
-            max-width: 75%;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 14px;
-            line-height: 1.4;
-            word-wrap: break-word;
-            display: flex;
-            flex-direction: column;
-        }
-
-
-        .msg-left {
-            background: #202c33;
-            align-self: flex-start;
-            border-top-left-radius: 0;
-        }
-
-
-        .msg-right {
-            background: #005c4b;
-            align-self: flex-end;
-            border-top-right-radius: 0;
-        }
-
-
-        .sender-name {
-            font-size: 11px;
-            font-weight: bold;
-            color: #53bdeb;
-            margin-bottom: 2px;
-        }
-
-
-        .msg-right .sender-name {
-            display: none;
-        }
-
-
-        .chat-footer {
-            padding: 10px;
-            background: #202c33;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-        }
-
-
-        .chat-footer input {
-            flex: 1;
-            margin: 0;
-        }
-
-
-        .chat-footer button {
-            width: auto;
-            padding: 10px 16px;
-            min-height: unset;
-        }
-
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TESHTAB — Private Messenger</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05070a;color:#e8edf2;font-family:Arial,sans-serif;min-height:100vh}
+button,input{font:inherit}
+button{cursor:pointer}
+#startup-screen{position:fixed;inset:0;background:#05070a;display:flex;align-items:center;justify-content:center;z-index:9999}
+.startup-box{text-align:center}
+.startup-title{font-size:32px;letter-spacing:8px}
+.startup-status{margin-top:15px;color:#6d7885;font-size:13px}.spinner{width:42px;height:42px;border:3px solid #202832;border-top-color:#ffffff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}@keyframes spin{to{transform:rotate(360deg)}}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+#auth-screen{align-items:center;justify-content:center;padding:20px}
+.auth-box{width:min(420px,100%);padding:30px;border:1px solid #202832;background:#0a0d12}
+.logo{font-size:34px;letter-spacing:8px;margin-bottom:8px}
+.subtitle{color:#687481;font-size:13px;margin-bottom:30px}
+.input{width:100%;padding:14px;margin-bottom:12px;background:#07090d;border:1px solid #252d36;color:#fff;outline:none}
+.input:focus{border-color:#586675}
+.cyber-button{width:100%;padding:14px;background:#111820;border:1px solid #46515d;color:#fff}
+.cyber-button:hover{background:#18212b}
+.danger{border-color:#733b43}
+.small-btn{width:auto;padding:9px 14px}
+.message{min-height:20px;margin:12px 0;color:#ff7180;font-size:13px}
+#home-screen{padding:20px;align-items:center;justify-content:center}
+.home-box{width:min(600px,100%)}
+.home-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.home-title{font-size:28px;letter-spacing:4px}
+.room-actions{display:grid;gap:12px}
+.room-input{display:flex;gap:10px}
+.room-input .input{margin:0}
+.room-input button{width:auto}
+#chat-screen{flex-direction:column}
+.chat-header{height:64px;border-bottom:1px solid #202832;display:flex;align-items:center;justify-content:space-between;padding:0 15px}
+.room-info{font-size:14px;color:#8793a0}
+.chat-actions{display:flex;gap:8px}
+#messages{flex:1;overflow-y:auto;padding:18px}
+.msg{margin-bottom:12px;max-width:80%}
+.msg .sender{font-size:11px;color:#687481;margin-bottom:4px}
+.msg .body{display:inline-block;background:#10161d;border:1px solid #202a34;padding:10px 12px;word-break:break-word}
+.msg.mine{margin-left:auto;text-align:right}
+.msg.mine .body{background:#17212b}
+.chat-input{display:flex;gap:10px;padding:12px;border-top:1px solid #202832}
+.chat-input .input{margin:0}
+.chat-input button{width:auto}
+@media(max-width:600px){
+.auth-box{padding:22px}
+.chat-header{padding:0 9px}
+#messages{padding:12px}
+}
+</style>
 </head>
-
-
 <body>
-
-
 <div id="startup-screen">
-    Restoring session...
+<div class="startup-box">
+<div class="spinner"></div>
+<div class="startup-title">TESHTAB</div>
+<div class="startup-status" id="startup-status">Connecting...</div>
+</div>
 </div>
 
-
-<div class="app-container">
-
-
-    <!-- AUTH SCREEN -->
-
-    <div id="auth-screen" class="screen hidden">
-
-        <div
-            class="header"
-            style="background:transparent; border:none;"
-        >
-            Welcome to ChatApp
-        </div>
-
-
-        <input
-            type="text"
-            id="username"
-            placeholder="Username"
-        >
-
-
-        <input
-            type="password"
-            id="password"
-            placeholder="Password"
-        >
-
-
-        <button
-            id="btn-login"
-            onclick="login()"
-        >
-
-            <span class="btn-text">
-                Login
-            </span>
-
-            <div class="spinner"></div>
-
-        </button>
-
-    </div>
-
-
-    <!-- HOME SCREEN -->
-
-    <div id="home-screen" class="screen hidden">
-
-        <div
-            class="header"
-            id="welcome-msg"
-        >
-            Home
-        </div>
-
-
-        <button
-            id="btn-create"
-            onclick="createRoom()"
-        >
-
-            <span class="btn-text">
-                + Create New Room
-            </span>
-
-            <div class="spinner"></div>
-
-        </button>
-
-
-        <div
-            style="
-                text-align:center;
-                color:#8696a0;
-                font-size:12px;
-                margin:5px 0;
-            "
-        >
-            OR
-        </div>
-
-
-        <input
-            type="text"
-            id="room-input"
-            placeholder="Enter 6-Digit Room ID"
-            maxlength="6"
-            inputmode="numeric"
-        >
-
-
-        <button
-            id="btn-join"
-            onclick="joinRoom()"
-            class="btn-secondary"
-        >
-
-            <span class="btn-text">
-                Join Room
-            </span>
-
-            <div class="spinner"></div>
-
-        </button>
-
-    </div>
-
-
-    <!-- CHAT SCREEN -->
-
-    <div
-        id="chat-screen"
-        class="screen hidden"
-        style="
-            padding:0;
-            justify-content:flex-start;
-        "
-    >
-
-        <div class="chat-header">
-
-            <div>
-
-                <div
-                    id="room-header"
-                    style="
-                        font-weight:bold;
-                        color:#e9edef;
-                    "
-                >
-                    Room
-                </div>
-
-
-                <div
-                    style="
-                        font-size:11px;
-                        color:#00a884;
-                    "
-                >
-                    ● Online
-                </div>
-
-            </div>
-
-        </div>
-
-
-        <div
-            id="chat-box"
-            class="chat-body"
-        ></div>
-
-
-        <div class="chat-footer">
-
-            <input
-                type="text"
-                id="msg-input"
-                placeholder="Message..."
-                onkeypress="
-                    if(event.key==='Enter') sendMsg()
-                "
-            >
-
-
-            <button onclick="sendMsg()">
-                ➤
-            </button>
-
-        </div>
-
-    </div>
-
+<div id="auth-screen" class="screen">
+<div class="auth-box">
+<div class="logo">TESHTAB</div>
+<div class="subtitle">PRIVATE MESSENGER</div>
+<input id="username" class="input" placeholder="Username" autocomplete="username">
+<input id="password" class="input" type="password" placeholder="Password" autocomplete="current-password">
+<button class="cyber-button" onclick="login()">LOGIN</button>
+<div id="auth-message" class="message"></div>
+</div>
 </div>
 
+<div id="home-screen" class="screen">
+<div class="home-box">
+<div class="home-header">
+<div class="home-title">TESHTAB</div>
+<button class="cyber-button danger small-btn" onclick="logout()">LOGOUT</button>
+</div>
+<div id="home-message" class="message"></div>
+<div class="room-actions">
+<button class="cyber-button" onclick="createRoom()">CREATE ROOM</button>
+<div class="room-input">
+<input id="room-id" class="input" maxlength="6" inputmode="numeric" placeholder="6-digit room ID">
+<button class="cyber-button" onclick="joinRoom()">JOIN</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="chat-screen" class="screen">
+<div class="chat-header">
+<div>
+<div>ROOM <span id="room-display"></span></div>
+<div class="room-info" id="connection-status">CONNECTED</div>
+</div>
+<div class="chat-actions">
+<button class="cyber-button small-btn" onclick="copyRoomId()">COPY</button>
+<button class="cyber-button danger small-btn" onclick="exitRoom()">EXIT</button>
+</div>
+</div>
+<div id="messages"></div>
+<div class="chat-input">
+<input id="message-input" class="input" placeholder="Message...">
+<button class="cyber-button" onclick="sendMessage()">SEND</button>
+</div>
+</div>
 
 <script>
+let ws=null;
+let currentUser=null;
+let currentRoom=null;
+let sessionToken=null;
 
-let ws;
-
-let currentUser = "";
-
-let reconnectTimer = null;
-
-
-// ============================================================
-// STARTUP SCREEN
-// ============================================================
-
-function hideStartupScreen() {
-
-    let startup =
-        document.getElementById(
-            "startup-screen"
-        );
-
-    if (startup) {
-
-        startup.style.display = "none";
-    }
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+document.getElementById(id).classList.add("active");
 }
 
-
-// ============================================================
-// BUTTON LOADING
-// ============================================================
-
-function showLoading(btnId, isLoading) {
-
-    let btn =
-        document.getElementById(btnId);
-
-    if (!btn) return;
-
-
-    let spinner =
-        btn.querySelector(".spinner");
-
-
-    if (isLoading) {
-
-        if (spinner) {
-            spinner.style.display = "block";
-        }
-
-        btn.disabled = true;
-        btn.style.opacity = "0.7";
-
-    } else {
-
-        if (spinner) {
-            spinner.style.display = "none";
-        }
-
-        btn.disabled = false;
-        btn.style.opacity = "1";
-    }
+function showMessage(id,text){
+document.getElementById(id).textContent=text||"";
 }
 
-
-// ============================================================
-// CONNECT
-// ============================================================
-
-function connect() {
-
-    let wsUrl =
-        location.hostname === "localhost" ||
-        location.hostname === "127.0.0.1"
-
-        ? "ws://" + location.hostname + ":8000"
-
-        : "wss://chat-app-fnl0.onrender.com";
-
-
-    ws = new WebSocket(wsUrl);
-
-
-    ws.onopen = () => {
-
-        console.log(
-            "[+] WebSocket connected"
-        );
-
-
-        let token =
-            localStorage.getItem(
-                "chat_session_token"
-            );
-
-
-        if (token) {
-
-            ws.send(
-                JSON.stringify({
-                    type: "RESTORE_SESSION",
-                    session_token: token
-                })
-            );
-
-        } else {
-
-            // No saved session
-            hideStartupScreen();
-
-            showAuthScreen();
-        }
-    };
-
-
-    ws.onmessage = (event) => {
-
-        let data =
-            JSON.parse(event.data);
-
-
-        showLoading(
-            "btn-login",
-            false
-        );
-
-        showLoading(
-            "btn-create",
-            false
-        );
-
-        showLoading(
-            "btn-join",
-            false
-        );
-
-
-        // ====================================================
-        // LOGIN RESPONSE
-        // ====================================================
-
-        if (data.type === "LOGIN_RES") {
-
-            if (data.status === "SUCCESS") {
-
-                currentUser =
-                    data.user;
-
-
-                localStorage.setItem(
-                    "chat_session_token",
-                    data.session_token
-                );
-
-
-                hideStartupScreen();
-
-                showHomeScreen();
-
-            } else {
-
-                hideStartupScreen();
-
-                alert(
-                    "Invalid Credentials!"
-                );
-            }
-        }
-
-
-        // ====================================================
-        // SESSION RESTORED
-        // ====================================================
-
-        if (data.type === "SESSION_RESTORED") {
-
-            if (data.status === "SUCCESS") {
-
-                currentUser =
-                    data.user;
-
-
-                if (data.room_id) {
-
-                    showChatScreen(
-                        data.room_id,
-                        data.history || []
-                    );
-
-                } else {
-
-                    showHomeScreen();
-                }
-
-
-                hideStartupScreen();
-
-            } else {
-
-                localStorage.removeItem(
-                    "chat_session_token"
-                );
-
-
-                hideStartupScreen();
-
-                showAuthScreen();
-            }
-        }
-
-
-        // ====================================================
-        // ROOM CREATED
-        // ====================================================
-
-        if (data.type === "ROOM_CREATED") {
-
-            hideStartupScreen();
-
-            showChatScreen(
-                data.room_id,
-                []
-            );
-        }
-
-
-        // ====================================================
-        // JOIN SUCCESS
-        // ====================================================
-
-        if (data.type === "JOIN_SUCCESS") {
-
-            hideStartupScreen();
-
-            showChatScreen(
-                data.room_id,
-                data.history || []
-            );
-        }
-
-
-        // ====================================================
-        // ROOM EXITED
-        // ====================================================
-
-        if (data.type === "ROOM_EXITED") {
-
-            showHomeScreen();
-        }
-
-
-        // ====================================================
-        // ROOM NOT FOUND
-        // ====================================================
-
-        if (data.type === "ROOM_NOT_FOUND") {
-
-            showLoading(
-                "btn-join",
-                false
-            );
-
-            alert(
-                "Room not found or expired."
-            );
-        }
-
-
-        // ====================================================
-        // AUTH REQUIRED
-        // ====================================================
-
-        if (data.type === "AUTH_REQUIRED") {
-
-            localStorage.removeItem(
-                "chat_session_token"
-            );
-
-
-            hideStartupScreen();
-
-            showAuthScreen();
-
-
-            alert(
-                "Please login first."
-            );
-        }
-
-
-        // ====================================================
-        // NEW MESSAGE
-        // ====================================================
-
-        if (data.type === "NEW_MSG") {
-
-            appendMsg(
-                data.sender,
-                data.message
-            );
-        }
-
-
-        // ====================================================
-        // LOGOUT
-        // ====================================================
-
-        if (data.type === "LOGOUT_SUCCESS") {
-
-            localStorage.removeItem(
-                "chat_session_token"
-            );
-
-
-            currentUser = "";
-
-
-            showAuthScreen();
-        }
-    };
-
-
-    ws.onclose = () => {
-
-        console.log(
-            "[-] WebSocket disconnected"
-        );
-
-
-        clearTimeout(
-            reconnectTimer
-        );
-
-
-        reconnectTimer =
-            setTimeout(
-                connect,
-                2000
-            );
-    };
-
-
-    ws.onerror = () => {
-
-        console.log(
-            "[!] WebSocket error"
-        );
-    };
+function hideStartupScreen(){
+document.getElementById("startup-screen").style.display="none";
 }
 
-
-// ============================================================
-// SCREEN FUNCTIONS
-// ============================================================
-
-function showAuthScreen() {
-
-    document
-        .getElementById("auth-screen")
-        .classList.remove("hidden");
-
-
-    document
-        .getElementById("home-screen")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("chat-screen")
-        .classList.add("hidden");
+function getWebSocketUrl(){
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){
+return "ws://"+location.hostname+":8000";
+}
+return "wss://chat-app-fnl0.onrender.com";
 }
 
+function connect(){
+try{
+ws=new WebSocket(getWebSocketUrl());
 
-function showHomeScreen() {
+ws.onopen=function(){
+hideStartupScreen();
+document.getElementById("connection-status").textContent="CONNECTED";
+const token=localStorage.getItem("void_session_token");
+if(token){
+sessionToken=token;
+ws.send(JSON.stringify({
+type:"RESTORE_SESSION",
+session_token:token
+}));
+}else{
+showScreen("auth-screen");
+}
+};
 
-    document
-        .getElementById("auth-screen")
-        .classList.add("hidden");
+ws.onmessage=function(event){
+let data;
+try{data=JSON.parse(event.data)}catch(e){return}
+handleServerMessage(data);
+};
 
+ws.onerror=function(){
+hideStartupScreen();
+document.getElementById("connection-status").textContent="CONNECTION ERROR";
+showScreen("auth-screen");
+};
 
-    document
-        .getElementById("home-screen")
-        .classList.remove("hidden");
+ws.onclose=function(){
+document.getElementById("connection-status").textContent="DISCONNECTED";
+};
+}catch(e){
+hideStartupScreen();
+showScreen("auth-screen");
+}
+}
+ 
+function handleServerMessage(data){
+switch(data.type){
+case "LOGIN_RES":
+handleLoginResponse(data);
+break;
 
+case "SESSION_RESTORED":
+handleSessionRestore(data);
+break;
 
-    document
-        .getElementById("chat-screen")
-        .classList.add("hidden");
+case "ROOM_CREATED":
+currentRoom=data.room_id;
+document.getElementById("room-display").textContent=currentRoom;
+showScreen("chat-screen");
+clearChat();
+break;
 
+case "JOIN_SUCCESS":
+currentRoom=data.room_id;
+document.getElementById("room-display").textContent=currentRoom;
+showScreen("chat-screen");
+clearChat();
 
-    document.getElementById(
-        "welcome-msg"
-    ).innerText =
-        "Hi, " + currentUser;
+if(data.history){
+data.history.forEach(function(item){
+appendMessage(item[0],item[1]);
+});
+}
+break;
+
+case "ROOM_FULL":
+showMessage("home-message","ROOM FULL");
+break;
+
+case "ROOM_NOT_FOUND":
+showMessage("home-message","ROOM NOT FOUND");
+break;
+
+case "NEW_MSG":
+appendMessage(data.sender,data.message);
+break;
+
+case "MESSAGE_FAILED":
+showMessage("home-message","MESSAGE FAILED");
+break;
+
+case "ROOM_EXITED":
+currentRoom=null;
+showScreen("home-screen");
+break;
+
+case "NOT_IN_ROOM":
+showMessage("home-message","NOT IN ROOM");
+break;
+
+case "LOGOUT_SUCCESS":
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+currentUser=null;
+currentRoom=null;
+showScreen("auth-screen");
+break;
+
+case "AUTH_REQUIRED":
+showScreen("auth-screen");
+break;
+}
 }
 
+function login(){
+const user=document.getElementById("username").value.trim();
+const pwd=document.getElementById("password").value;
 
-function showChatScreen(
-    roomId,
-    history
-) {
-
-    document
-        .getElementById("auth-screen")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("home-screen")
-        .classList.add("hidden");
-
-
-    document
-        .getElementById("chat-screen")
-        .classList.remove("hidden");
-
-
-    document.getElementById(
-        "room-header"
-    ).innerText =
-        "Room: " + roomId;
-
-
-    let box =
-        document.getElementById(
-            "chat-box"
-        );
-
-
-    box.innerHTML = "";
-
-
-    history.forEach(
-        h =>
-            appendMsg(
-                h[0],
-                h[1]
-            )
-    );
+if(!user||!pwd){
+showMessage("auth-message","Username and password required.");
+return;
 }
 
-
-// ============================================================
-// LOGIN
-// ============================================================
-
-function login() {
-
-    let u =
-        document
-            .getElementById("username")
-            .value
-            .trim();
-
-
-    let p =
-        document
-            .getElementById("password")
-            .value
-            .trim();
-
-
-    if (u && p) {
-
-        showLoading(
-            "btn-login",
-            true
-        );
-
-
-        ws.send(
-            JSON.stringify({
-                type: "LOGIN",
-                username: u,
-                password: p
-            })
-        );
-    }
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("auth-message","Server not connected.");
+return;
 }
 
+clearMessage("auth-message");
 
-// ============================================================
-// CREATE ROOM
-// ============================================================
-
-function createRoom() {
-
-    showLoading(
-        "btn-create",
-        true
-    );
-
-
-    ws.send(
-        JSON.stringify({
-            type: "CREATE_ROOM"
-        })
-    );
+ws.send(JSON.stringify({
+type:"LOGIN",
+username:user,
+password:pwd
+}));
 }
 
+function handleLoginResponse(data){
+if(data.status==="SUCCESS"){
+currentUser=data.user;
+sessionToken=data.session_token;
 
-// ============================================================
-// JOIN ROOM
-// ============================================================
+localStorage.setItem(
+"void_session_token",
+sessionToken
+);
 
-function joinRoom() {
-
-    let roomId =
-        document
-            .getElementById("room-input")
-            .value
-            .trim();
-
-
-    if (!/^\d{6}$/.test(roomId)) {
-
-        alert(
-            "Room ID must be exactly 6 digits."
-        );
-
-        return;
-    }
-
-
-    showLoading(
-        "btn-join",
-        true
-    );
-
-
-    ws.send(
-        JSON.stringify({
-            type: "JOIN_ROOM",
-            room_id: roomId
-        })
-    );
+showMessage("auth-message","");
+showScreen("home-screen");
+}else{
+showMessage("auth-message","Invalid username or password.");
+}
 }
 
-
-// ============================================================
-// SEND MESSAGE
-// ============================================================
-
-function sendMsg() {
-
-    let input =
-        document.getElementById(
-            "msg-input"
-        );
-
-
-    let message =
-        input.value.trim();
-
-
-    if (
-        message !== "" &&
-        ws &&
-        ws.readyState === WebSocket.OPEN
-    ) {
-
-        ws.send(
-            JSON.stringify({
-                type: "SEND_MSG",
-                message: message
-            })
-        );
-
-
-        input.value = "";
-    }
+function handleSessionRestore(data){
+if(data.status!=="SUCCESS"){
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+showScreen("auth-screen");
+return;
 }
 
+currentUser=data.user;
+currentRoom=data.room_id||null;
 
-// ============================================================
-// APPEND MESSAGE
-// ============================================================
+if(currentRoom){
+document.getElementById("room-display").textContent=currentRoom;
+clearChat();
 
-function appendMsg(
-    sender,
-    msg
-) {
-
-    let box =
-        document.getElementById(
-            "chat-box"
-        );
-
-
-    let isMe =
-        sender === currentUser;
-
-
-    let msgHTML = `
-
-        <div
-            class="msg-bubble ${
-                isMe
-                    ? "msg-right"
-                    : "msg-left"
-            }"
-        >
-
-            <span
-                class="sender-name"
-            >
-                ${sender}
-            </span>
-
-            <span>
-                ${msg}
-            </span>
-
-        </div>
-
-    `;
-
-
-    box.innerHTML += msgHTML;
-
-
-    box.scrollTop =
-        box.scrollHeight;
+if(data.history){
+data.history.forEach(function(item){
+appendMessage(item[0],item[1]);
+});
 }
 
+showScreen("chat-screen");
+}else{
+showScreen("home-screen");
+}
+}
 
-// ============================================================
-// START CONNECTION
-// ============================================================
+function createRoom(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
 
+clearMessage("home-message");
+
+ws.send(JSON.stringify({
+type:"CREATE_ROOM"
+}));
+}
+
+function joinRoom(){
+const room=document.getElementById("room-id").value.trim();
+
+if(!/^[0-9]{6}$/.test(room)){
+showMessage("home-message","Room ID must be exactly 6 digits.");
+return;
+}
+
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+clearMessage("home-message");
+
+ws.send(JSON.stringify({
+type:"JOIN_ROOM",
+room_id:room
+}));
+}
+
+function sendMessage(){
+const input=document.getElementById("message-input");
+const msg=input.value.trim();
+
+if(!msg)return;
+
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+if(!currentRoom)return;
+
+ws.send(JSON.stringify({
+type:"SEND_MSG",
+message:msg
+}));
+
+input.value="";
+input.focus();
+}
+
+function clearChat(){
+document.getElementById("messages").innerHTML="";
+}
+
+function appendMessage(sender,message){
+const container=document.getElementById("messages");
+
+const wrapper=document.createElement("div");
+wrapper.className="msg";
+
+if(sender===currentUser){
+wrapper.classList.add("mine");
+}
+
+const senderEl=document.createElement("div");
+senderEl.className="sender";
+senderEl.textContent=sender;
+
+const bodyEl=document.createElement("div");
+bodyEl.className="body";
+bodyEl.textContent=message;
+
+wrapper.appendChild(senderEl);
+wrapper.appendChild(bodyEl);
+container.appendChild(wrapper);
+
+container.scrollTop=container.scrollHeight;
+}
+
+function exitRoom(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+ws.send(JSON.stringify({
+type:"EXIT_ROOM"
+}));
+}
+
+function logout(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+currentUser=null;
+currentRoom=null;
+showScreen("auth-screen");
+return;
+}
+
+ws.send(JSON.stringify({
+type:"LOGOUT"
+}));
+}
+
+function copyRoomId(){
+if(!currentRoom)return;
+
+if(navigator.clipboard){
+navigator.clipboard.writeText(currentRoom)
+.then(function(){
+document.getElementById("connection-status").textContent="ROOM ID COPIED";
+setTimeout(function(){
+document.getElementById("connection-status").textContent="CONNECTED";
+},1500);
+})
+.catch(function(){
+document.getElementById("connection-status").textContent="COPY FAILED";
+});
+}
+}
+
+document.getElementById("message-input").addEventListener("keydown",function(event){
+if(event.key==="Enter"){
+event.preventDefault();
+sendMessage();
+}
+});
+
+document.getElementById("room-id").addEventListener("input",function(){
+this.value=this.value.replace(/\\D/g,"").slice(0,6);
+});
+
+document.getElementById("password").addEventListener("keydown",function(event){
+if(event.key==="Enter"){
+event.preventDefault();
+login();
+}
+});
+
+window.addEventListener("load",function(){
 connect();
+});
+
+function clearMessage(id){
+document.getElementById(id).textContent="";
+}
 
 </script>
-
 </body>
 </html>
