@@ -3,7 +3,7 @@ import os
 import json
 import websockets
 from database import init_db, verify_user, register_user, save_message, get_chat_history
-from rooms import generate_room_id, room_exists
+from rooms import generate_room_id, room_exists, remove_room
 
 init_db()
 
@@ -79,6 +79,11 @@ async def handler(websocket):
         if current_room and current_room in ROOMS:
             ROOMS[current_room].discard(websocket)
 
+            # Room ko tab delete karo jab koi user connected na ho
+            if not ROOMS[current_room]:
+                remove_room(current_room)
+                del ROOMS[current_room]
+
 async def main():
     port = int(os.environ.get("PORT", 8000))
 
@@ -86,9 +91,6 @@ async def main():
         print(f"[+] WEB SOCKET SERVER RUNNING ON PORT {port}!")
         await asyncio.Future()
 
-
-if __name__ == "__main__":
-    asyncio.run(main())
 
 if __name__ == "__main__":
     asyncio.run(main())

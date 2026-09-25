@@ -1,17 +1,30 @@
 import random
-import string
 
 # Active rooms list (temporary in-memory store)
-active_rooms = []
+active_rooms = set()
+
+ROOM_ID_LENGTH = 6
+
 
 def generate_room_id():
-    chars = string.ascii_uppercase + string.digits
-    room_id = ''.join(random.choice(chars) for _ in range(6))
-    active_rooms.append(room_id)
-    return room_id
+    while True:
+        room_id = ''.join(
+            random.choice("0123456789")
+            for _ in range(ROOM_ID_LENGTH)
+        )
+
+        if room_id not in active_rooms:
+            active_rooms.add(room_id)
+            return room_id
+
 
 def room_exists(room_id):
     return room_id in active_rooms
+
+
+def remove_room(room_id):
+    active_rooms.discard(room_id)
+
 
 if __name__ == "__main__":
     new_id = generate_room_id()
