@@ -1,0 +1,8 @@
+chat_app.db
+__pycache__/
+*.backup
+*.broken
+*.before_fix
+*.before_room_limit
+*.save
+project.zip
