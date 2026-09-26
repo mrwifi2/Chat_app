@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TESHTAB — Private Messenger</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#05070a;color:#e8edf2;font-family:Arial,sans-serif;min-height:100vh}
+button,input{font:inherit}
+button{cursor:pointer}
+#startup-screen{position:fixed;inset:0;background:#05070a;display:flex;align-items:center;justify-content:center;z-index:9999}
+.startup-box{text-align:center}
+.startup-title{font-size:32px;letter-spacing:8px}
+.startup-status{margin-top:15px;color:#6d7885;font-size:13px}.spinner{width:42px;height:42px;border:3px solid #202832;border-top-color:#ffffff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}@keyframes spin{to{transform:rotate(360deg)}}
+.screen{display:none;min-height:100vh}
+.screen.active{display:flex}
+#auth-screen{align-items:center;justify-content:center;padding:20px}
+.auth-box{width:min(420px,100%);padding:30px;border:1px solid #202832;background:#0a0d12}
+.logo{font-size:34px;letter-spacing:8px;margin-bottom:8px}
+.subtitle{color:#687481;font-size:13px;margin-bottom:30px}
+.input{width:100%;padding:14px;margin-bottom:12px;background:#07090d;border:1px solid #252d36;color:#fff;outline:none}
+.input:focus{border-color:#586675}
+.cyber-button{width:100%;padding:14px;background:#111820;border:1px solid #46515d;color:#fff}
+.cyber-button:hover{background:#18212b}
+.danger{border-color:#733b43}
+.small-btn{width:auto;padding:9px 14px}
+.message{min-height:20px;margin:12px 0;color:#ff7180;font-size:13px}
+#home-screen{padding:20px;align-items:center;justify-content:center}
+.home-box{width:min(600px,100%)}
+.home-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:25px}
+.home-title{font-size:28px;letter-spacing:4px}
+.room-actions{display:grid;gap:12px}
+.room-input{display:flex;gap:10px}
+.room-input .input{margin:0}
+.room-input button{width:auto}
+#chat-screen{flex-direction:column}
+.chat-header{height:64px;border-bottom:1px solid #202832;display:flex;align-items:center;justify-content:space-between;padding:0 15px}
+.room-info{font-size:14px;color:#8793a0}
+.chat-actions{display:flex;gap:8px}
+#messages{flex:1;overflow-y:auto;padding:18px}
+.msg{margin-bottom:12px;max-width:80%}
+.msg .sender{font-size:11px;color:#687481;margin-bottom:4px}
+.msg .body{display:inline-block;background:#10161d;border:1px solid #202a34;padding:10px 12px;word-break:break-word}
+.msg.mine{margin-left:auto;text-align:right}
+.msg.mine .body{background:#17212b}
+.chat-input{display:flex;gap:10px;padding:12px;border-top:1px solid #202832}
+.chat-input .input{margin:0}
+.chat-input button{width:auto}
+@media(max-width:600px){
+.auth-box{padding:22px}
+.chat-header{padding:0 9px}
+#messages{padding:12px}
+}
+</style>
+</head>
+<body>
+<div id="startup-screen">
+<div class="startup-box">
+<div class="spinner"></div>
+<div class="startup-title">TESHTAB</div>
+<div class="startup-status" id="startup-status">Connecting...</div>
+</div>
+</div>
+
+<div id="auth-screen" class="screen">
+<div class="auth-box">
+<div class="logo">TESHTAB</div>
+<div class="subtitle">PRIVATE MESSENGER</div>
+<input id="username" class="input" placeholder="Username" autocomplete="username">
+<input id="password" class="input" type="password" placeholder="Password" autocomplete="current-password">
+<button class="cyber-button" onclick="login()">LOGIN</button>
+<div id="auth-message" class="message"></div>
+</div>
+</div>
+
+<div id="home-screen" class="screen">
+<div class="home-box">
+<div class="home-header">
+<div class="home-title">TESHTAB</div>
+<button class="cyber-button danger small-btn" onclick="logout()">LOGOUT</button>
+</div>
+<div id="home-message" class="message"></div>
+<div class="room-actions">
+<button class="cyber-button" onclick="createRoom()">CREATE ROOM</button>
+<div class="room-input">
+<input id="room-id" class="input" maxlength="6" inputmode="numeric" placeholder="6-digit room ID">
+<button class="cyber-button" onclick="joinRoom()">JOIN</button>
+</div>
+</div>
+</div>
+</div>
+
+<div id="chat-screen" class="screen">
+<div class="chat-header">
+<div>
+<div>ROOM <span id="room-display"></span></div>
+<div class="room-info" id="connection-status">CONNECTED</div>
+</div>
+<div class="chat-actions">
+<button class="cyber-button small-btn" onclick="copyRoomId()">COPY</button>
+<button class="cyber-button danger small-btn" onclick="exitRoom()">EXIT</button>
+</div>
+</div>
+<div id="messages"></div>
+<div class="chat-input">
+<input id="message-input" class="input" placeholder="Message...">
+<button class="cyber-button" onclick="sendMessage()">SEND</button>
+</div>
+</div>
+
+<script>
+let ws=null;
+let currentUser=null;
+let currentRoom=null;
+let sessionToken=null;
+
+function showScreen(id){
+document.querySelectorAll(".screen").forEach(x=>x.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+}
+
+function showMessage(id,text){
+document.getElementById(id).textContent=text||"";
+}
+
+function hideStartupScreen(){
+document.getElementById("startup-screen").style.display="none";
+}
+
+function getWebSocketUrl(){
+if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){
+return "ws://"+location.hostname+":8000";
+}
+return "wss://chat-app-fnl0.onrender.com";
+}
+
+function connect(){
+try{
+ws=new WebSocket(getWebSocketUrl());
+
+ws.onopen=function(){
+hideStartupScreen();
+document.getElementById("connection-status").textContent="CONNECTED";
+const token=localStorage.getItem("void_session_token");
+if(token){
+sessionToken=token;
+ws.send(JSON.stringify({
+type:"RESTORE_SESSION",
+session_token:token
+}));
+}else{
+showScreen("auth-screen");
+}
+};
+
+ws.onmessage=function(event){
+let data;
+try{data=JSON.parse(event.data)}catch(e){return}
+handleServerMessage(data);
+};
+
+ws.onerror=function(){
+hideStartupScreen();
+document.getElementById("connection-status").textContent="CONNECTION ERROR";
+showScreen("auth-screen");
+};
+
+ws.onclose=function(){
+document.getElementById("connection-status").textContent="DISCONNECTED";
+};
+}catch(e){
+hideStartupScreen();
+showScreen("auth-screen");
+}
+}
+ 
+function handleServerMessage(data){
+switch(data.type){
+case "LOGIN_RES":
+handleLoginResponse(data);
+break;
+
+case "SESSION_RESTORED":
+handleSessionRestore(data);
+break;
+
+case "ROOM_CREATED":
+currentRoom=data.room_id;
+document.getElementById("room-display").textContent=currentRoom;
+showScreen("chat-screen");
+clearChat();
+break;
+
+case "JOIN_SUCCESS":
+currentRoom=data.room_id;
+document.getElementById("room-display").textContent=currentRoom;
+showScreen("chat-screen");
+clearChat();
+
+if(data.history){
+data.history.forEach(function(item){
+appendMessage(item[0],item[1]);
+});
+}
+break;
+
+case "ROOM_FULL":
+showMessage("home-message","ROOM FULL");
+break;
+
+case "ROOM_NOT_FOUND":
+showMessage("home-message","ROOM NOT FOUND");
+break;
+
+case "NEW_MSG":
+appendMessage(data.sender,data.message);
+break;
+
+case "MESSAGE_FAILED":
+showMessage("home-message","MESSAGE FAILED");
+break;
+
+case "ROOM_EXITED":
+currentRoom=null;
+showScreen("home-screen");
+break;
+
+case "NOT_IN_ROOM":
+showMessage("home-message","NOT IN ROOM");
+break;
+
+case "LOGOUT_SUCCESS":
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+currentUser=null;
+currentRoom=null;
+showScreen("auth-screen");
+break;
+
+case "AUTH_REQUIRED":
+showScreen("auth-screen");
+break;
+}
+}
+
+function login(){
+const user=document.getElementById("username").value.trim();
+const pwd=document.getElementById("password").value;
+
+if(!user||!pwd){
+showMessage("auth-message","Username and password required.");
+return;
+}
+
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("auth-message","Server not connected.");
+return;
+}
+
+clearMessage("auth-message");
+
+ws.send(JSON.stringify({
+type:"LOGIN",
+username:user,
+password:pwd
+}));
+}
+
+function handleLoginResponse(data){
+if(data.status==="SUCCESS"){
+currentUser=data.user;
+sessionToken=data.session_token;
+
+localStorage.setItem(
+"void_session_token",
+sessionToken
+);
+
+showMessage("auth-message","");
+showScreen("home-screen");
+}else{
+showMessage("auth-message","Invalid username or password.");
+}
+}
+
+function handleSessionRestore(data){
+if(data.status!=="SUCCESS"){
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+showScreen("auth-screen");
+return;
+}
+
+currentUser=data.user;
+currentRoom=data.room_id||null;
+
+if(currentRoom){
+document.getElementById("room-display").textContent=currentRoom;
+clearChat();
+
+if(data.history){
+data.history.forEach(function(item){
+appendMessage(item[0],item[1]);
+});
+}
+
+showScreen("chat-screen");
+}else{
+showScreen("home-screen");
+}
+}
+
+function createRoom(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+clearMessage("home-message");
+
+ws.send(JSON.stringify({
+type:"CREATE_ROOM"
+}));
+}
+
+function joinRoom(){
+const room=document.getElementById("room-id").value.trim();
+
+if(!/^[0-9]{6}$/.test(room)){
+showMessage("home-message","Room ID must be exactly 6 digits.");
+return;
+}
+
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+clearMessage("home-message");
+
+ws.send(JSON.stringify({
+type:"JOIN_ROOM",
+room_id:room
+}));
+}
+
+function sendMessage(){
+const input=document.getElementById("message-input");
+const msg=input.value.trim();
+
+if(!msg)return;
+
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+if(!currentRoom)return;
+
+ws.send(JSON.stringify({
+type:"SEND_MSG",
+message:msg
+}));
+
+input.value="";
+input.focus();
+}
+
+function clearChat(){
+document.getElementById("messages").innerHTML="";
+}
+
+function appendMessage(sender,message){
+const container=document.getElementById("messages");
+
+const wrapper=document.createElement("div");
+wrapper.className="msg";
+
+if(sender===currentUser){
+wrapper.classList.add("mine");
+}
+
+const senderEl=document.createElement("div");
+senderEl.className="sender";
+senderEl.textContent=sender;
+
+const bodyEl=document.createElement("div");
+bodyEl.className="body";
+bodyEl.textContent=message;
+
+wrapper.appendChild(senderEl);
+wrapper.appendChild(bodyEl);
+container.appendChild(wrapper);
+
+container.scrollTop=container.scrollHeight;
+}
+
+function exitRoom(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+showMessage("home-message","Server not connected.");
+return;
+}
+
+ws.send(JSON.stringify({
+type:"EXIT_ROOM"
+}));
+}
+
+function logout(){
+if(!ws||ws.readyState!==WebSocket.OPEN){
+localStorage.removeItem("void_session_token");
+sessionToken=null;
+currentUser=null;
+currentRoom=null;
+showScreen("auth-screen");
+return;
+}
+
+ws.send(JSON.stringify({
+type:"LOGOUT"
+}));
+}
+
+function copyRoomId(){
+if(!currentRoom)return;
+
+if(navigator.clipboard){
+navigator.clipboard.writeText(currentRoom)
+.then(function(){
+document.getElementById("connection-status").textContent="ROOM ID COPIED";
+setTimeout(function(){
+document.getElementById("connection-status").textContent="CONNECTED";
+},1500);
+})
+.catch(function(){
+document.getElementById("connection-status").textContent="COPY FAILED";
+});
+}
+}
+
+document.getElementById("message-input").addEventListener("keydown",function(event){
+if(event.key==="Enter"){
+event.preventDefault();
+sendMessage();
+}
+});
+
+document.getElementById("room-id").addEventListener("input",function(){
+this.value=this.value.replace(/\\D/g,"").slice(0,6);
+});
+
+document.getElementById("password").addEventListener("keydown",function(event){
+if(event.key==="Enter"){
+event.preventDefault();
+login();
+}
+});
+
+window.addEventListener("load",function(){
+connect();
+});
+
+function clearMessage(id){
+document.getElementById(id).textContent="";
+}
+
+function toggleFullscreen(){
+if(!document.fullscreenElement){
+document.documentElement.requestFullscreen().catch(function(){
+document.getElementById("connection-status").textContent="FULLSCREEN BLOCKED";
+});
+}else{
+document.exitFullscreen();
+}
+}
+
+</script>
+</body>
+</html>
