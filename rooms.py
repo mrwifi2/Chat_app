@@ -1,6 +1,8 @@
 import random
 
-# Active rooms list (temporary in-memory store)
+# Active rooms list (temporary in-memory store).
+# A room "exists" only for as long as this process is running and the room
+# hasn't been idle-expired or explicitly closed.
 active_rooms = set()
 
 ROOM_ID_LENGTH = 6
