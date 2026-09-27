@@ -14,7 +14,10 @@ from database import (
     remove_membership,
     get_room_members,
     get_user_rooms,
-    remove_room_completely
+    remove_room_completely,
+    edit_message,
+    unsend_message,
+    set_reaction
 )
 
 from rooms import (
@@ -126,9 +129,27 @@ async def broadcast_presence(room_id):
 async def main():
     port = int(os.environ.get("PORT", 8000))
 
-    async with websockets.serve(handler, "0.0.0.0", port):
+    async with websockets.serve(
+        handler,
+        "0.0.0.0",
+        port,
+        process_request=process_request,
+        ping_interval=20,
+        ping_timeout=20
+    ):
         print(f"[+] WEB SOCKET SERVER RUNNING ON PORT {port}!")
         await asyncio.Future()
+
+
+async def process_request(path, request_headers):
+    """Answers plain HTTP GETs (no 'Upgrade: websocket' header) with a
+    200 OK instead of failing the handshake. This is what lets a free
+    uptime-pinger (UptimeRobot, cron-job.org, etc.) hit the server every
+    few minutes over plain HTTP to stop Render's free tier from putting it
+    to sleep after 15 idle minutes — no real WebSocket connection needed."""
+    if request_headers.get("Upgrade", "").lower() != "websocket":
+        return (200, [("Content-Type", "text/plain")], b"OK\n")
+    return None
 
 
 # ============================================================
@@ -452,14 +473,15 @@ async def handler(websocket):
                     }))
                     continue
 
-                timestamp = save_message(room_id, current_user, msg)
+                timestamp_info = save_message(room_id, current_user, msg)
 
                 broadcast_data = json.dumps({
                     "type": "NEW_MSG",
                     "room_id": room_id,
+                    "id": timestamp_info["id"],
                     "sender": current_user,
                     "message": msg,
-                    "timestamp": timestamp
+                    "timestamp": timestamp_info["timestamp"]
                 })
 
                 for conn in list(ROOM_SOCKETS.get(room_id, set())):
@@ -467,6 +489,131 @@ async def handler(websocket):
                         await conn.send(broadcast_data)
                     except Exception:
                         pass
+
+
+            # ==================================================
+            # 6b. EDIT MESSAGE
+            # ==================================================
+
+            elif action == "EDIT_MSG":
+
+                if not current_user:
+                    await websocket.send(json.dumps({"type": "AUTH_REQUIRED"}))
+                    continue
+
+                message_id = data.get("message_id")
+                new_text = str(data.get("new_text", "")).strip()
+
+                if not message_id or not new_text:
+                    continue
+
+                room_id = edit_message(message_id, current_user, new_text)
+
+                if not room_id:
+                    await websocket.send(json.dumps({
+                        "type": "EDIT_FAILED",
+                        "message_id": message_id
+                    }))
+                    continue
+
+                broadcast_data = json.dumps({
+                    "type": "MSG_EDITED",
+                    "room_id": room_id,
+                    "message_id": message_id,
+                    "message": new_text
+                })
+
+                for conn in list(ROOM_SOCKETS.get(room_id, set())):
+                    try:
+                        await conn.send(broadcast_data)
+                    except Exception:
+                        pass
+
+
+            # ==================================================
+            # 6c. UNSEND MESSAGE
+            # ==================================================
+
+            elif action == "UNSEND_MSG":
+
+                if not current_user:
+                    await websocket.send(json.dumps({"type": "AUTH_REQUIRED"}))
+                    continue
+
+                message_id = data.get("message_id")
+
+                if not message_id:
+                    continue
+
+                room_id = unsend_message(message_id, current_user)
+
+                if not room_id:
+                    await websocket.send(json.dumps({
+                        "type": "UNSEND_FAILED",
+                        "message_id": message_id
+                    }))
+                    continue
+
+                broadcast_data = json.dumps({
+                    "type": "MSG_UNSENT",
+                    "room_id": room_id,
+                    "message_id": message_id,
+                    "sender": current_user
+                })
+
+                for conn in list(ROOM_SOCKETS.get(room_id, set())):
+                    try:
+                        await conn.send(broadcast_data)
+                    except Exception:
+                        pass
+
+
+            # ==================================================
+            # 6d. REACT TO MESSAGE
+            # ==================================================
+
+            elif action == "REACT_MSG":
+
+                if not current_user:
+                    await websocket.send(json.dumps({"type": "AUTH_REQUIRED"}))
+                    continue
+
+                message_id = data.get("message_id")
+                emoji = str(data.get("emoji", "")).strip()
+
+                if not message_id or not emoji:
+                    continue
+
+                result = set_reaction(message_id, current_user, emoji)
+
+                if not result:
+                    continue
+
+                room_id, final_emoji = result
+
+                broadcast_data = json.dumps({
+                    "type": "MSG_REACTED",
+                    "room_id": room_id,
+                    "message_id": message_id,
+                    "username": current_user,
+                    "emoji": final_emoji
+                })
+
+                for conn in list(ROOM_SOCKETS.get(room_id, set())):
+                    try:
+                        await conn.send(broadcast_data)
+                    except Exception:
+                        pass
+
+
+            # ==================================================
+            # 6e. HEARTBEAT (keeps the socket alive through proxies
+            #     and lets the client confirm the round trip works)
+            # ==================================================
+
+            elif action == "PING":
+
+                await websocket.send(json.dumps({"type": "PONG"}))
 
 
             # ==================================================

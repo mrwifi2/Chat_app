@@ -23,7 +23,18 @@ def init_db():
                         room_id TEXT NOT NULL,
                         sender TEXT NOT NULL,
                         message TEXT NOT NULL,
-                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP)''')
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        edited INTEGER NOT NULL DEFAULT 0,
+                        unsent INTEGER NOT NULL DEFAULT 0)''')
+
+    # Migration safety net: older deployments created "messages" before the
+    # edited/unsent columns existed. ALTER TABLE ADD COLUMN is a no-op error
+    # if the column is already there, so we just swallow that specific case.
+    for col_def in ("edited INTEGER NOT NULL DEFAULT 0", "unsent INTEGER NOT NULL DEFAULT 0"):
+        try:
+            cursor.execute(f"ALTER TABLE messages ADD COLUMN {col_def}")
+        except sqlite3.OperationalError:
+            pass
 
     # 3. Room membership table (who belongs to which room -> powers the
     #    multi-room sidebar and lets a user come back to old chats)
@@ -32,6 +43,14 @@ def init_db():
                         room_id TEXT NOT NULL,
                         joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                         PRIMARY KEY (username, room_id))''')
+
+    # 4. Reactions table (one reaction per user per message — picking a new
+    #    emoji replaces the old one, matching the client's toggle behaviour)
+    cursor.execute('''CREATE TABLE IF NOT EXISTS reactions (
+                        message_id INTEGER NOT NULL,
+                        username TEXT NOT NULL,
+                        emoji TEXT NOT NULL,
+                        PRIMARY KEY (message_id, username))''')
 
     # Default users (kept for compatibility with the existing app)
     cursor.execute("INSERT OR IGNORE INTO users VALUES ('ajju', '1234')")
@@ -42,6 +61,7 @@ def init_db():
     # previous run can never become reachable again (their room_id will
     # never be re-issued), so we clear them on startup to stop the database
     # file from growing forever. User accounts are NOT touched.
+    cursor.execute("DELETE FROM reactions")
     cursor.execute("DELETE FROM messages")
     cursor.execute("DELETE FROM memberships")
 
@@ -91,22 +111,126 @@ def save_message(room_id, sender, message):
     cursor.execute("SELECT timestamp FROM messages WHERE id=?", (msg_id,))
     row = cursor.fetchone()
     conn.close()
-    return row[0] if row else None
+    return {"id": msg_id, "timestamp": row[0] if row else None}
 
 
 def get_chat_history(room_id):
     conn = _connect()
     cursor = conn.cursor()
     cursor.execute(
-        "SELECT sender, message, timestamp FROM messages WHERE room_id=? ORDER BY id ASC",
+        "SELECT id, sender, message, timestamp, edited, unsent FROM messages WHERE room_id=? ORDER BY id ASC",
         (room_id,)
     )
     rows = cursor.fetchall()
+
+    cursor.execute(
+        "SELECT message_id, username, emoji FROM reactions WHERE message_id IN "
+        "(SELECT id FROM messages WHERE room_id=?)",
+        (room_id,)
+    )
+    reaction_rows = cursor.fetchall()
     conn.close()
+
+    reactions_by_msg = {}
+    for message_id, username, emoji in reaction_rows:
+        reactions_by_msg.setdefault(message_id, {})[username] = emoji
+
     return [
-        {"sender": r[0], "message": r[1], "timestamp": r[2]}
+        {
+            "id": r[0],
+            "sender": r[1],
+            "message": r[2],
+            "timestamp": r[3],
+            "edited": bool(r[4]),
+            "unsent": bool(r[5]),
+            "reactions": reactions_by_msg.get(r[0], {})
+        }
         for r in rows
     ]
+
+
+def get_message_info(message_id):
+    """Returns (room_id, sender, unsent) for a message, or None if it doesn't exist."""
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT room_id, sender, unsent FROM messages WHERE id=?",
+        (message_id,)
+    )
+    row = cursor.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {"room_id": row[0], "sender": row[1], "unsent": bool(row[2])}
+
+
+def edit_message(message_id, username, new_text):
+    """Only the original sender can edit, and only while the message hasn't
+    been unsent. Returns the affected room_id on success, else None."""
+    info = get_message_info(message_id)
+    if not info or info["sender"] != username or info["unsent"]:
+        return None
+
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE messages SET message=?, edited=1 WHERE id=?",
+        (new_text, message_id)
+    )
+    conn.commit()
+    conn.close()
+    return info["room_id"]
+
+
+def unsend_message(message_id, username):
+    """Only the original sender can unsend. Returns the affected room_id on
+    success, else None."""
+    info = get_message_info(message_id)
+    if not info or info["sender"] != username or info["unsent"]:
+        return None
+
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE messages SET unsent=1 WHERE id=?", (message_id,))
+    cursor.execute("DELETE FROM reactions WHERE message_id=?", (message_id,))
+    conn.commit()
+    conn.close()
+    return info["room_id"]
+
+
+def set_reaction(message_id, username, emoji):
+    """Toggle a user's reaction on a message: picking the same emoji again
+    removes it, picking a different one replaces it. Returns
+    (room_id, final_emoji_or_None) or None if the message doesn't exist /
+    was unsent."""
+    info = get_message_info(message_id)
+    if not info or info["unsent"]:
+        return None
+
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT emoji FROM reactions WHERE message_id=? AND username=?",
+        (message_id, username)
+    )
+    existing = cursor.fetchone()
+
+    if existing and existing[0] == emoji:
+        cursor.execute(
+            "DELETE FROM reactions WHERE message_id=? AND username=?",
+            (message_id, username)
+        )
+        final_emoji = None
+    else:
+        cursor.execute(
+            "INSERT OR REPLACE INTO reactions (message_id, username, emoji) VALUES (?, ?, ?)",
+            (message_id, username, emoji)
+        )
+        final_emoji = emoji
+
+    conn.commit()
+    conn.close()
+    return (info["room_id"], final_emoji)
 
 
 def delete_chat_history(room_id):
@@ -164,9 +288,13 @@ def get_user_rooms(username):
 
 
 def remove_room_completely(room_id):
-    """Wipe a room's chat history and every membership row for it."""
+    """Wipe a room's chat history, reactions and every membership row for it."""
     conn = _connect()
     cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM reactions WHERE message_id IN (SELECT id FROM messages WHERE room_id=?)",
+        (room_id,)
+    )
     cursor.execute("DELETE FROM messages WHERE room_id=?", (room_id,))
     cursor.execute("DELETE FROM memberships WHERE room_id=?", (room_id,))
     conn.commit()
