@@ -120,26 +120,13 @@ async def broadcast_presence(room_id):
 
 
 # ============================================================
-# SERVER START (with a lightweight HTTP health-check response so
-# hosting platforms like Render can ping "/" without the socket
-# handshake failing and triggering unnecessary restarts)
+# SERVER START
 # ============================================================
-
-async def health_check(path, request_headers):
-    if request_headers.get("Upgrade", "").lower() == "websocket":
-        return None
-    return (200, [("Content-Type", "text/plain")], b"OK")
-
 
 async def main():
     port = int(os.environ.get("PORT", 8000))
 
-    async with websockets.serve(
-        handler,
-        "0.0.0.0",
-        port,
-        process_request=health_check
-    ):
+    async with websockets.serve(handler, "0.0.0.0", port):
         print(f"[+] WEB SOCKET SERVER RUNNING ON PORT {port}!")
         await asyncio.Future()
 
