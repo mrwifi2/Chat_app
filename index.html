@@ -90,8 +90,9 @@ input{outline:none}
 /* ============================================================
    NET BADGE / TOASTS
    ============================================================ */
-#net-badge{position:fixed;top:14px;right:14px;z-index:500;display:flex;align-items:center;gap:7px;padding:7px 12px 7px 9px;border-radius:999px;font-size:11.5px;font-weight:600;color:var(--text-dim);opacity:0;transform:translateY(-8px);transition:all .35s ease;background:var(--surface-solid);border:1px solid var(--border)}
-#net-badge.show{opacity:1;transform:translateY(0)}
+#net-badge{position:fixed;top:calc(14px + env(safe-area-inset-top,0px));right:14px;z-index:1600;display:flex;align-items:center;gap:7px;padding:7px 12px 7px 9px;border-radius:999px;font-size:11.5px;font-weight:600;color:var(--text-dim);opacity:0;transform:translateY(-8px) scale(.94);transition:opacity .3s ease,transform .3s ease;background:var(--surface-solid);border:1px solid var(--border);box-shadow:0 10px 26px -10px rgba(0,0,0,.6);pointer-events:none}
+#net-badge.show{opacity:1;transform:translateY(0) scale(1)}
+#net-badge.persist{pointer-events:auto}
 #net-badge .dot{width:8px;height:8px;border-radius:50%;background:var(--text-faint);flex:none}
 #net-badge.online .dot{background:var(--success);animation:dotPulse 1.8s infinite}
 #net-badge.offline .dot{background:var(--danger)}
@@ -189,6 +190,83 @@ input{outline:none}
 .send-btn{width:48px;height:48px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--accent-grad);box-shadow:0 8px 24px -8px rgba(124,92,255,.7);transition:transform .18s}
 .send-btn:active{transform:scale(.9)}
 .send-btn svg{width:19px;height:19px;color:#0b0715;margin-left:1px}
+
+/* ============================================================
+   MESSAGE INTERACTIONS (reply / edit / unsend / copy / react)
+   ============================================================ */
+.msg-row{position:relative;touch-action:pan-y}
+.msg-row .msg-body{position:relative}
+.msg-swipe-icon{position:absolute;top:50%;left:-38px;transform:translateY(-50%) scale(.4) rotate(-35deg);width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--surface-solid);border:1px solid var(--border);opacity:0;transition:opacity .12s,transform .12s;pointer-events:none}
+.msg-swipe-icon svg{width:13px;height:13px;color:var(--accent2)}
+.msg-row.mine .msg-swipe-icon{left:auto;right:-38px}
+.msg-row.swipe-ready .msg-swipe-icon{opacity:1;transform:translateY(-50%) scale(1) rotate(0)}
+.msg-row.swiping .msg-body,.msg-row.swiping .msg-avatar{transition:none}
+.msg-row.snap-back .msg-body,.msg-row.snap-back .msg-avatar{transition:transform .38s cubic-bezier(.2,1.2,.3,1)}
+
+.msg-row.long-pressing .msg-body{animation:pressSquish .38s cubic-bezier(.3,.9,.3,1.3)}
+@keyframes pressSquish{0%{filter:brightness(1)}35%{transform:scale(.965);filter:brightness(1.18)}100%{transform:scale(1);filter:brightness(1)}}
+
+.reply-quote{display:flex;flex-direction:column;gap:1px;padding:6px 9px;margin-bottom:6px;border-radius:9px;background:rgba(0,0,0,.16);border-left:2.5px solid var(--accent2);max-width:100%}
+.msg-row.mine .reply-quote{background:rgba(0,0,0,.14);border-left-color:#0b0715;border-left-width:2.5px}
+.reply-quote .rq-name{font-size:10.5px;font-weight:700;color:var(--accent2)}
+.msg-row.mine .reply-quote .rq-name{color:#0b0715;opacity:.75}
+.reply-quote .rq-text{font-size:12px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.msg-row.mine .reply-quote .rq-text{color:#0b0715;opacity:.65}
+
+.msg-meta-row{display:flex;align-items:center;gap:5px;margin-top:3px;padding:0 3px}
+.msg-row.mine .msg-meta-row{flex-direction:row-reverse}
+.msg-edited-tag{font-size:9.5px;color:var(--text-faint);font-style:italic}
+.msg-unsent .msg-body{background:transparent !important;border:1px dashed var(--border) !important;color:var(--text-faint) !important;font-style:italic;box-shadow:none}
+.msg-unsent .msg-body::before{content:"";display:inline-block;width:12px;height:12px;margin-right:6px;vertical-align:-1px;opacity:.6;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpath d='M16 17l5-5-5-5'/%3E%3Cpath d='M21 12H9'/%3E%3C/svg%3E") center/contain no-repeat}
+
+.reaction-chip{display:inline-flex;align-items:center;gap:3px;padding:2px 7px 2px 6px;border-radius:999px;background:var(--surface-solid);border:1px solid var(--border);font-size:12px;line-height:1.5;width:fit-content;cursor:pointer;animation:chipPop .38s cubic-bezier(.24,1.4,.4,1) both}
+.reaction-chip:not(.mine-chip){cursor:default;opacity:.85}
+.reaction-row{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.msg-row.mine .reaction-row{justify-content:flex-end}
+@keyframes chipPop{0%{transform:scale(0);opacity:0}55%{transform:scale(1.22)}100%{transform:scale(1);opacity:1}}
+.reaction-burst{position:absolute;inset:0;pointer-events:none;overflow:visible}
+.reaction-burst span{position:absolute;top:50%;left:50%;font-size:13px;opacity:0;animation:burstFly .6s ease-out forwards}
+@keyframes burstFly{0%{opacity:1;transform:translate(-50%,-50%) scale(.4) translate(0,0)}100%{opacity:0;transform:translate(-50%,-50%) scale(1) translate(var(--bx),var(--by))}}
+
+/* Reply-context bar above the composer */
+#reply-context{display:none;align-items:center;gap:10px;padding:9px 14px;margin:0 14px;border-radius:12px 12px 0 0;background:rgba(124,92,255,.08);border:1px solid var(--border-soft);border-bottom:none;animation:replyBarIn .28s cubic-bezier(.22,.9,.32,1)}
+#reply-context.show{display:flex}
+@keyframes replyBarIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+#reply-context .rc-bar{width:3px;align-self:stretch;border-radius:3px;background:var(--accent-grad);flex:none}
+#reply-context .rc-body{flex:1;min-width:0}
+#reply-context .rc-label{font-size:10.5px;font-weight:700;color:var(--accent2);display:flex;align-items:center;gap:5px}
+#reply-context .rc-text{font-size:12.5px;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#reply-context .rc-close{flex:none;width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--text-dim)}
+#reply-context .rc-close:hover{background:rgba(255,255,255,.08)}
+#reply-context.edit-mode{background:rgba(46,230,166,.08)}
+#reply-context.edit-mode .rc-label{color:var(--success)}
+
+/* Quick-react strip + action sheet */
+#msg-sheet-overlay{position:fixed;inset:0;background:rgba(4,5,10,.55);backdrop-filter:blur(3px);z-index:1400;opacity:0;pointer-events:none;transition:opacity .22s}
+#msg-sheet-overlay.show{opacity:1;pointer-events:auto}
+#msg-sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:min(420px,100%);z-index:1450;padding:10px 12px calc(14px + env(safe-area-inset-bottom,0px));transition:transform .38s cubic-bezier(.16,1.3,.28,1)}
+#msg-sheet-overlay.show #msg-sheet{transform:translate(-50%,0)}
+.quick-react-bar{display:flex;justify-content:space-between;gap:4px;padding:10px 14px;border-radius:999px;margin-bottom:10px;box-shadow:var(--shadow-lg)}
+.quick-react-bar .qr-emoji{font-size:23px;line-height:1;padding:4px;border-radius:50%;transition:transform .18s cubic-bezier(.3,1.6,.4,1);animation:qrIn .32s cubic-bezier(.24,1.3,.4,1) both}
+.quick-react-bar .qr-emoji:nth-child(1){animation-delay:.02s}
+.quick-react-bar .qr-emoji:nth-child(2){animation-delay:.05s}
+.quick-react-bar .qr-emoji:nth-child(3){animation-delay:.08s}
+.quick-react-bar .qr-emoji:nth-child(4){animation-delay:.11s}
+.quick-react-bar .qr-emoji:nth-child(5){animation-delay:.14s}
+.quick-react-bar .qr-emoji:nth-child(6){animation-delay:.17s}
+@keyframes qrIn{from{opacity:0;transform:translateY(10px) scale(.5)}to{opacity:1;transform:translateY(0) scale(1)}}
+.quick-react-bar .qr-emoji:active{transform:scale(1.45) rotate(-8deg)}
+.quick-react-bar .qr-emoji.mine{background:rgba(124,92,255,.18);box-shadow:0 0 0 2px rgba(124,92,255,.4) inset}
+.sheet-card{border-radius:var(--radius-lg);overflow:hidden;box-shadow:var(--shadow-lg)}
+.sheet-preview{padding:12px 16px;border-bottom:1px solid var(--border-soft);font-size:13px;color:var(--text-dim);display:flex;align-items:center;gap:8px}
+.sheet-preview .sp-dot{width:6px;height:6px;border-radius:50%;background:var(--accent2);flex:none}
+.sheet-preview .sp-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sheet-action{display:flex;align-items:center;gap:13px;padding:14px 18px;font-size:14.5px;font-weight:600;transition:background .15s;animation:sheetRowIn .3s cubic-bezier(.22,.9,.32,1) both}
+.sheet-action:active{background:rgba(255,255,255,.06)}
+.sheet-action svg{width:18px;height:18px;flex:none;color:var(--text-dim)}
+.sheet-action.danger{color:#ff9fae}
+.sheet-action.danger svg{color:#ff9fae}
+@keyframes sheetRowIn{from{opacity:0;transform:translateX(-8px)}to{opacity:1;transform:translateX(0)}}
 
 /* ============================================================
    MODALS (new chat / confirm)
@@ -326,6 +404,16 @@ input{outline:none}
 
       <div id="messages" style="display:none"></div>
 
+      <div id="reply-context">
+        <div class="rc-bar"></div>
+        <div class="rc-body">
+          <div class="rc-label" id="rc-label">Replying to</div>
+          <div class="rc-text" id="rc-text"></div>
+        </div>
+        <button class="rc-close" id="rc-close">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg>
+        </button>
+      </div>
       <div class="chat-input" id="chat-input-row" style="display:none">
         <div class="field" style="margin:0">
           <input id="message-input" placeholder="Type a message..." autocomplete="off" style="padding-left:18px">
@@ -378,6 +466,20 @@ input{outline:none}
   </div>
 </div>
 
+<!-- MESSAGE ACTION SHEET (reply / react / copy / edit / unsend) -->
+<div id="msg-sheet-overlay">
+  <div id="msg-sheet">
+    <div class="quick-react-bar glass" id="quick-react-bar"></div>
+    <div class="sheet-card glass">
+      <div class="sheet-preview">
+        <span class="sp-dot"></span>
+        <span class="sp-text" id="sheet-preview-text"></span>
+      </div>
+      <div id="sheet-actions"></div>
+    </div>
+  </div>
+</div>
+
 <script>
 /* ============================================================
    STATE
@@ -406,7 +508,10 @@ function connect(){
 
     ws.onopen = function(){
       hideStartupScreen();
-      setNetBadge("online","Connected");
+      reconnectAttempts = 0;
+      setNetBadge("online", hasConnectedBefore ? "Reconnected" : "Connected");
+      hasConnectedBefore = true;
+      startHeartbeat();
       const token = localStorage.getItem("void_session_token");
       if(token){
         sessionToken = token;
@@ -429,18 +534,71 @@ function connect(){
     };
 
     ws.onclose = function(){
-      setNetBadge("offline","Disconnected");
+      stopHeartbeat();
+      setNetBadge("offline","Reconnecting…");
       updateConnectionStrip("DISCONNECTED");
+      scheduleReconnect();
     };
   }catch(e){
     hideStartupScreen();
     showScreen("auth-screen");
+    scheduleReconnect();
   }
+}
+
+/* ---- auto-reconnect: exponential backoff + instant retry when the tab/
+   network comes back, so returning to the app reconnects on its own ---- */
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+let hasConnectedBefore = false;
+
+function scheduleReconnect(){
+  if(reconnectTimer) return;
+  const delay = Math.min(15000, 1000 * Math.pow(1.7, reconnectAttempts));
+  reconnectAttempts++;
+  reconnectTimer = setTimeout(function(){
+    reconnectTimer = null;
+    connect();
+  }, delay);
+}
+
+function reconnectNowIfNeeded(){
+  if(!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING){
+    if(reconnectTimer){ clearTimeout(reconnectTimer); reconnectTimer = null; }
+    reconnectAttempts = 0;
+    connect();
+  }
+}
+// Coming back to the tab, regaining network, or refocusing the window are
+// exactly the moments a phone is most likely to have quietly dropped the
+// socket in the background — so each one gets an immediate retry instead
+// of waiting out the backoff timer.
+document.addEventListener("visibilitychange", function(){
+  if(document.visibilityState === "visible") reconnectNowIfNeeded();
+});
+window.addEventListener("online", reconnectNowIfNeeded);
+window.addEventListener("focus", reconnectNowIfNeeded);
+
+/* ---- app-level heartbeat: keeps NAT/proxy timeouts from silently killing
+   an idle connection, on top of the websockets library's own protocol
+   pings. Only ticks while the tab is actually visible. ---- */
+let heartbeatTimer = null;
+function startHeartbeat(){
+  stopHeartbeat();
+  heartbeatTimer = setInterval(function(){
+    if(document.visibilityState === "visible" && ws && ws.readyState === WebSocket.OPEN){
+      try{ ws.send(JSON.stringify({type:"PING"})); }catch(e){}
+    }
+  }, 20000);
+}
+function stopHeartbeat(){
+  if(heartbeatTimer){ clearInterval(heartbeatTimer); heartbeatTimer = null; }
 }
 
 function send(obj){
   if(!ws || ws.readyState !== WebSocket.OPEN){
     showToast("Server not connected.","error");
+    reconnectNowIfNeeded();
     return false;
   }
   ws.send(JSON.stringify(obj));
@@ -470,6 +628,12 @@ function handleServerMessage(data){
     case "ROOM_NOT_FOUND": showMessage("modal-message","Room ID not found."); break;
     case "NEW_MSG": handleIncomingMessage(data); break;
     case "MESSAGE_FAILED": showToast("Message failed to send.","error"); break;
+    case "MSG_EDITED": handleMsgEdited(data); break;
+    case "MSG_UNSENT": handleMsgUnsent(data); break;
+    case "MSG_REACTED": handleMsgReacted(data); break;
+    case "EDIT_FAILED": showToast("Couldn't edit that message.","error"); break;
+    case "UNSEND_FAILED": showToast("Couldn't unsend that message.","error"); break;
+    case "PONG": break;
     case "ROOM_EXITED": handleRoomExited(data.room_id); break;
     case "NOT_IN_ROOM": showToast("You're not in that room.","error"); break;
     case "PRESENCE_UPDATE": handlePresenceUpdate(data); break;
@@ -519,7 +683,7 @@ function bootApp(roomList){
   roomList.forEach(function(r){
     rooms.set(r.room_id, {
       room_id: r.room_id,
-      messages: r.history || [],
+      messages: (r.history || []).map(function(h){ return makeMsgObj(h.sender, h.message, h.timestamp, h); }),
       online: !!r.online,
       unread: 0
     });
@@ -558,11 +722,12 @@ function handleLogoutSuccess(){
    ROOMS
    ============================================================ */
 function upsertRoom(room_id, history, online){
+  const msgs = (history || []).map(function(h){ return makeMsgObj(h.sender, h.message, h.timestamp, h); });
   if(!rooms.has(room_id)){
-    rooms.set(room_id, {room_id, messages: history || [], online: !!online, unread: 0});
+    rooms.set(room_id, {room_id, messages: msgs, online: !!online, unread: 0});
   }else{
     const r = rooms.get(room_id);
-    if(history && history.length) r.messages = history;
+    if(history && history.length) r.messages = msgs;
     r.online = !!online;
   }
   renderSidebar();
@@ -595,7 +760,7 @@ function backToSidebar(){
 }
 
 function exitRoomFlow(room_id){
-  showConfirm("Leave this room?", "You'll stop receiving new messages here, and the chat may expire for good if no one else is left inside.")
+  showConfirm("Leave this room?", "You'll stop receiving new messages here, and the chat may expire for good if no one else is left inside.", "Leave")
     .then(function(ok){
       if(ok) send({type:"EXIT_ROOM", room_id: room_id});
     });
@@ -625,14 +790,74 @@ function handlePresenceUpdate(data){
 /* ============================================================
    MESSAGES
    ============================================================ */
+const REPLY_RE = /^\u200B\[\[REPLY:([\s\S]*?)\]\]\u200B\n([\s\S]*)$/;
+
+function parseMessageRaw(raw){
+  const match = REPLY_RE.exec(raw || "");
+  if(match){
+    try{
+      const meta = JSON.parse(match[1]);
+      return {replyMeta:{sender:meta.s, text:meta.t}, bodyText: match[2]};
+    }catch(e){ /* fall through */ }
+  }
+  return {replyMeta:null, bodyText: raw || ""};
+}
+
+function encodeReply(replyToMsg, bodyText){
+  const meta = JSON.stringify({s: replyToMsg.sender, t: (replyToMsg._bodyText || "").slice(0,120)});
+  return "\u200B[[REPLY:" + meta + "]]\u200B\n" + bodyText;
+}
+
+// Wraps a raw {sender,message,timestamp} into our richer client-side message
+// object. Reply quoting is encoded straight into the text so it survives the
+// server/database untouched. id/edited/unsent/reactions come straight from
+// the server (opts), which is now the source of truth for edit/unsend/react.
+function makeMsgObj(sender, message, timestamp, opts){
+  opts = opts || {};
+  const parsed = parseMessageRaw(message);
+  return {
+    id: (opts.id !== undefined) ? opts.id : null,
+    sender: sender,
+    message: message,
+    timestamp: timestamp,
+    _replyMeta: parsed.replyMeta,
+    _bodyText: parsed.bodyText,
+    edited: !!opts.edited,
+    unsent: !!opts.unsent,
+    reactions: opts.reactions ? Object.assign({}, opts.reactions) : {}
+  };
+}
+
+function findMsgInRoom(room_id, message_id){
+  const r = rooms.get(room_id);
+  if(!r) return null;
+  return r.messages.find(function(m){ return m.id === message_id; }) || null;
+}
+
 function sendMessage(){
   const input = document.getElementById("message-input");
-  const msg = input.value.trim();
-  if(!msg || !activeRoomId) return;
+  const raw = input.value.trim();
+  if(!raw || !activeRoomId) return;
 
-  send({type:"SEND_MSG", room_id: activeRoomId, message: msg});
+  if(editTarget){
+    const m = editTarget.msg;
+    send({type:"EDIT_MSG", room_id: activeRoomId, message_id: m.id, new_text: raw});
+    // optimistic — the MSG_EDITED broadcast (sent to us too) will confirm it
+    m._bodyText = raw;
+    m.edited = true;
+    editTarget = null;
+    document.getElementById("reply-context").classList.remove("show","edit-mode");
+    input.value = "";
+    renderMessagesList(rooms.get(activeRoomId));
+    renderSidebar();
+    return;
+  }
+
+  const outgoing = replyTarget ? encodeReply(replyTarget, raw) : raw;
+  send({type:"SEND_MSG", room_id: activeRoomId, message: outgoing});
   input.value = "";
   input.focus();
+  cancelReply();
 }
 
 function handleIncomingMessage(data){
@@ -641,49 +866,54 @@ function handleIncomingMessage(data){
     // message for a room we don't know about yet (shouldn't normally happen) - ignore safely
     return;
   }
-  r.messages.push({sender:data.sender, message:data.message, timestamp:data.timestamp});
+  r.messages.push(makeMsgObj(data.sender, data.message, data.timestamp, {id: data.id}));
 
   if(activeRoomId === data.room_id){
-    appendMessageEl(data.sender, data.message, data.timestamp);
+    renderMessagesList(r);
+    const container = document.getElementById("messages");
+    container.scrollTop = container.scrollHeight;
   }else{
     r.unread += 1;
   }
   renderSidebar();
 }
 
-function appendMessageEl(sender, message, timestamp){
-  const container = document.getElementById("messages");
-  const mine = sender === currentUser;
+function handleMsgEdited(data){
+  const m = findMsgInRoom(data.room_id, data.message_id);
+  if(!m) return;
+  m._bodyText = data.message;
+  m.edited = true;
+  if(activeRoomId === data.room_id) renderMessagesList(rooms.get(data.room_id));
+  renderSidebar();
+}
 
-  const row = document.createElement("div");
-  row.className = "msg-row" + (mine ? " mine" : "");
+function handleMsgUnsent(data){
+  const m = findMsgInRoom(data.room_id, data.message_id);
+  if(!m) return;
+  m.unsent = true;
+  m.reactions = {};
+  if(activeRoomId === data.room_id) renderMessagesList(rooms.get(data.room_id));
+  renderSidebar();
+}
 
-  const avatar = document.createElement("div");
-  avatar.className = "msg-avatar";
-  avatar.textContent = getInitial(sender);
+function handleMsgReacted(data){
+  const m = findMsgInRoom(data.room_id, data.message_id);
+  if(!m) return;
+  if(data.emoji){ m.reactions[data.username] = data.emoji; }
+  else{ delete m.reactions[data.username]; }
 
-  const col = document.createElement("div");
-  col.className = "msg-col";
-
-  const senderEl = document.createElement("div");
-  senderEl.className = "msg-sender";
-  senderEl.textContent = sender;
-
-  const bodyEl = document.createElement("div");
-  bodyEl.className = "msg-body";
-  bodyEl.textContent = message;
-
-  const timeEl = document.createElement("div");
-  timeEl.className = "msg-time";
-  timeEl.textContent = formatTime(timestamp);
-
-  col.appendChild(senderEl);
-  col.appendChild(bodyEl);
-  col.appendChild(timeEl);
-  row.appendChild(avatar);
-  row.appendChild(col);
-  container.appendChild(row);
-  container.scrollTop = container.scrollHeight;
+  if(activeRoomId === data.room_id){
+    const r = rooms.get(data.room_id);
+    const idx = r.messages.indexOf(m);
+    renderMessagesList(r);
+    if(data.emoji && data.username !== currentUser){
+      // the other person's reaction just landed — worth a little celebration too
+      requestAnimationFrame(function(){
+        const row = document.querySelector('.msg-row[data-idx="'+idx+'"]');
+        if(row) spawnReactionBurst(row.querySelector(".reaction-burst"), data.emoji);
+      });
+    }
+  }
 }
 
 function formatTime(ts){
@@ -692,6 +922,256 @@ function formatTime(ts){
   if(isNaN(d.getTime())) return "";
   return d.toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"});
 }
+
+/* ---- reply / edit composer state ---- */
+let replyTarget = null;
+let editTarget = null;
+
+function startReply(m){
+  if(!m || m.unsent) return;
+  if(editTarget) cancelEdit();
+  replyTarget = m;
+  const bar = document.getElementById("reply-context");
+  bar.classList.remove("edit-mode");
+  bar.classList.add("show");
+  document.getElementById("rc-label").textContent = "Replying to " + (m.sender === currentUser ? "yourself" : m.sender);
+  document.getElementById("rc-text").textContent = m._bodyText;
+  document.getElementById("message-input").focus();
+}
+function cancelReply(){
+  replyTarget = null;
+  document.getElementById("reply-context").classList.remove("show");
+}
+function startEdit(m, idx){
+  if(!m || m.unsent || !m.id) return;
+  if(replyTarget) cancelReply();
+  editTarget = {msg:m, idx:idx};
+  const bar = document.getElementById("reply-context");
+  bar.classList.add("show","edit-mode");
+  document.getElementById("rc-label").textContent = "Editing message";
+  document.getElementById("rc-text").textContent = m._bodyText;
+  const input = document.getElementById("message-input");
+  input.value = m._bodyText;
+  input.focus();
+}
+function cancelEdit(){
+  if(!editTarget) return;
+  editTarget = null;
+  document.getElementById("reply-context").classList.remove("show","edit-mode");
+  document.getElementById("message-input").value = "";
+}
+document.getElementById("rc-close").addEventListener("click", function(){
+  if(editTarget) cancelEdit(); else cancelReply();
+});
+
+/* ---- unsend / react / copy — all three now round-trip through the server,
+   so they show up for the other person too ---- */
+function confirmUnsend(m){
+  if(!m.id) return;
+  showConfirm("Unsend this message?","This removes it for both of you.","Unsend")
+    .then(function(ok){
+      if(!ok || !activeRoomId) return;
+      send({type:"UNSEND_MSG", room_id: activeRoomId, message_id: m.id});
+      m.unsent = true;
+      m.reactions = {};
+      renderMessagesList(rooms.get(activeRoomId));
+      renderSidebar();
+    });
+}
+
+function copyMessageText(m){
+  if(!m || !m._bodyText) return;
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(m._bodyText)
+      .then(function(){ showToast("Message copied","success"); })
+      .catch(function(){ showToast("Copy failed","error"); });
+  }
+}
+
+const QUICK_EMOJIS = ["❤️","😂","😮","😢","👍","🔥"];
+
+function toggleReaction(m, emoji, idx){
+  if(!activeRoomId || !m.id) return;
+  const removing = m.reactions[currentUser] === emoji;
+  send({type:"REACT_MSG", room_id: activeRoomId, message_id: m.id, emoji: emoji});
+  if(removing){ delete m.reactions[currentUser]; }else{ m.reactions[currentUser] = emoji; }
+  renderMessagesList(rooms.get(activeRoomId));
+  if(!removing){
+    requestAnimationFrame(function(){
+      const row = document.querySelector('.msg-row[data-idx="'+idx+'"]');
+      if(row) spawnReactionBurst(row.querySelector(".reaction-burst"), emoji);
+    });
+  }
+}
+
+function spawnReactionBurst(container, emoji){
+  if(!container) return;
+  for(let i=0;i<6;i++){
+    const s = document.createElement("span");
+    s.textContent = emoji;
+    const angle = (Math.PI*2/6) * i;
+    const dist = 24 + Math.random()*12;
+    s.style.setProperty("--bx", (Math.cos(angle)*dist)+"px");
+    s.style.setProperty("--by", (Math.sin(angle)*dist)+"px");
+    s.style.animationDelay = (i*0.02)+"s";
+    container.appendChild(s);
+    setTimeout(function(){ s.remove(); }, 700);
+  }
+}
+
+/* ---- action sheet (reply / react / copy / edit / unsend) ---- */
+const ICON_REPLY = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17l-5-5 5-5"></path><path d="M4 12h11a4 4 0 0 1 4 4v1"></path></svg>';
+const ICON_COPY = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>';
+const ICON_EDIT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path></svg>';
+const ICON_TRASH = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>';
+
+function openMsgSheet(m, idx){
+  const mine = m.sender === currentUser;
+
+  const qrBar = document.getElementById("quick-react-bar");
+  qrBar.innerHTML = "";
+  if(!m.unsent){
+    QUICK_EMOJIS.forEach(function(em){
+      const span = document.createElement("span");
+      span.className = "qr-emoji" + (m.reactions[currentUser] === em ? " mine" : "");
+      span.textContent = em;
+      span.addEventListener("click", function(){
+        toggleReaction(m, em, idx);
+        closeMsgSheet();
+      });
+      qrBar.appendChild(span);
+    });
+    qrBar.style.display = "flex";
+  }else{
+    qrBar.style.display = "none";
+  }
+
+  document.getElementById("sheet-preview-text").textContent = m.unsent
+    ? (mine ? "You unsent this message" : m.sender + " unsent a message")
+    : m._bodyText;
+
+  const actions = document.getElementById("sheet-actions");
+  actions.innerHTML = "";
+  const list = [];
+  if(!m.unsent){
+    list.push({label:"Reply", icon:ICON_REPLY, fn:function(){ startReply(m); closeMsgSheet(); }});
+    list.push({label:"Copy text", icon:ICON_COPY, fn:function(){ copyMessageText(m); closeMsgSheet(); }});
+    if(mine) list.push({label:"Edit", icon:ICON_EDIT, fn:function(){ startEdit(m, idx); closeMsgSheet(); }});
+  }
+  if(mine && !m.unsent){
+    list.push({label:"Unsend", icon:ICON_TRASH, danger:true, fn:function(){ closeMsgSheet(); confirmUnsend(m); }});
+  }
+  list.forEach(function(item, i){
+    const row = document.createElement("div");
+    row.className = "sheet-action" + (item.danger ? " danger" : "");
+    row.style.animationDelay = (i*0.03)+"s";
+    row.innerHTML = item.icon + "<span>"+item.label+"</span>";
+    row.addEventListener("click", item.fn);
+    actions.appendChild(row);
+  });
+
+  document.getElementById("msg-sheet-overlay").classList.add("show");
+}
+function closeMsgSheet(){
+  document.getElementById("msg-sheet-overlay").classList.remove("show");
+}
+document.getElementById("msg-sheet-overlay").addEventListener("click", function(e){
+  if(e.target === this) closeMsgSheet();
+});
+
+function getMsgByIdx(idx){
+  if(!activeRoomId) return null;
+  const r = rooms.get(activeRoomId);
+  if(!r) return null;
+  return r.messages[idx];
+}
+function triggerActionSheetForRow(row){
+  const idx = parseInt(row.dataset.idx, 10);
+  const m = getMsgByIdx(idx);
+  if(m) openMsgSheet(m, idx);
+}
+
+/* ---- swipe-to-reply + long-press gestures (pointer events cover touch & mouse) ---- */
+(function(){
+  const container = document.getElementById("messages");
+  const LONG_PRESS_MS = 450;
+  const SWIPE_TRIGGER = 58;
+  const SWIPE_MAX = 84;
+  let pressTimer = null, activeRow = null;
+  let startX = 0, startY = 0, dx = 0, dy = 0, dragging = false, longPressFired = false;
+
+  container.addEventListener("pointerdown", function(e){
+    const row = e.target.closest(".msg-row");
+    if(!row) return;
+    activeRow = row;
+    startX = e.clientX; startY = e.clientY;
+    dx = 0; dy = 0; dragging = false; longPressFired = false;
+    if(row.setPointerCapture){ try{ row.setPointerCapture(e.pointerId); }catch(err){} }
+    pressTimer = setTimeout(function(){
+      longPressFired = true;
+      if(navigator.vibrate) navigator.vibrate(12);
+      triggerActionSheetForRow(row);
+    }, LONG_PRESS_MS);
+  });
+
+  container.addEventListener("pointermove", function(e){
+    if(!activeRow) return;
+    dx = e.clientX - startX; dy = e.clientY - startY;
+    if(!dragging){
+      if(Math.abs(dx) > 10 || Math.abs(dy) > 10){
+        if(Math.abs(dx) > Math.abs(dy) && !activeRow.classList.contains("msg-unsent")){
+          dragging = true;
+          clearTimeout(pressTimer);
+          activeRow.classList.add("swiping");
+        }else{
+          clearTimeout(pressTimer); // vertical scroll — let the browser handle it
+        }
+      }
+    }
+    if(dragging){
+      const clamped = Math.max(0, Math.min(SWIPE_MAX, dx));
+      const body = activeRow.querySelector(".msg-body");
+      const avatar = activeRow.querySelector(".msg-avatar");
+      const t = "translateX(" + clamped + "px)";
+      if(body) body.style.transform = t;
+      if(avatar) avatar.style.transform = t;
+      activeRow.classList.toggle("swipe-ready", clamped >= SWIPE_TRIGGER);
+    }
+  });
+
+  function endGesture(commit){
+    clearTimeout(pressTimer);
+    if(!activeRow) return;
+    if(longPressFired){ activeRow = null; dragging = false; return; }
+    const row = activeRow;
+    if(dragging){
+      const body = row.querySelector(".msg-body");
+      const avatar = row.querySelector(".msg-avatar");
+      const wasReady = row.classList.contains("swipe-ready");
+      row.classList.remove("swiping");
+      row.classList.add("snap-back");
+      if(body) body.style.transform = "";
+      if(avatar) avatar.style.transform = "";
+      row.classList.remove("swipe-ready");
+      setTimeout(function(){ row.classList.remove("snap-back"); }, 400);
+      if(commit && wasReady){
+        const idx = parseInt(row.dataset.idx, 10);
+        const m = getMsgByIdx(idx);
+        if(m && !m.unsent) startReply(m);
+      }
+    }
+    activeRow = null; dragging = false;
+  }
+
+  container.addEventListener("pointerup", function(){ endGesture(true); });
+  container.addEventListener("pointercancel", function(){ endGesture(false); });
+  container.addEventListener("contextmenu", function(e){
+    const row = e.target.closest(".msg-row");
+    if(!row) return;
+    e.preventDefault();
+    triggerActionSheetForRow(row);
+  });
+})();
 
 /* ============================================================
    RENDERING
@@ -714,7 +1194,14 @@ function renderSidebar(){
     item.onclick = function(){ openRoom(r.room_id); };
 
     const last = r.messages[r.messages.length - 1];
-    const preview = last ? (last.sender === currentUser ? "You: " : "") + last.message : "No messages yet";
+    let preview = "No messages yet";
+    if(last){
+      if(last.unsent){
+        preview = last.sender === currentUser ? "You unsent a message" : "Message unsent";
+      }else{
+        preview = (last.sender === currentUser ? "You: " : "") + (last._bodyText !== undefined ? last._bodyText : last.message);
+      }
+    }
 
     item.innerHTML =
       '<div class="r-avatar">'+
@@ -761,10 +1248,114 @@ function renderChatPane(){
   document.getElementById("connection-status").textContent = "CONNECTED";
   setStatusDot(r.online ? "online" : "offline");
 
-  msgBox.innerHTML = "";
-  r.messages.forEach(function(m){
-    appendMessageEl(m.sender, m.message, m.timestamp);
+  renderMessagesList(r);
+  msgBox.scrollTop = msgBox.scrollHeight;
+
+  // opening a different room clears any in-progress reply/edit composer state
+  cancelReply();
+  cancelEdit();
+}
+
+function renderMessagesList(r){
+  const container = document.getElementById("messages");
+  container.innerHTML = "";
+  if(!r) return;
+  r.messages.forEach(function(m, idx){
+    container.appendChild(buildMessageRow(m, idx));
   });
+}
+
+function buildMessageRow(m, idx){
+  const mine = m.sender === currentUser;
+  const row = document.createElement("div");
+  row.className = "msg-row" + (mine ? " mine" : "") + (m.unsent ? " msg-unsent" : "");
+  row.dataset.idx = idx;
+
+  const avatar = document.createElement("div");
+  avatar.className = "msg-avatar";
+  avatar.textContent = getInitial(m.sender);
+
+  const swipeIcon = document.createElement("div");
+  swipeIcon.className = "msg-swipe-icon";
+  swipeIcon.innerHTML = ICON_REPLY;
+
+  const col = document.createElement("div");
+  col.className = "msg-col";
+
+  if(!mine && !m.unsent){
+    const senderEl = document.createElement("div");
+    senderEl.className = "msg-sender";
+    senderEl.textContent = m.sender;
+    col.appendChild(senderEl);
+  }
+
+  const bodyEl = document.createElement("div");
+  bodyEl.className = "msg-body";
+
+  if(m.unsent){
+    bodyEl.textContent = mine ? "You unsent this message" : m.sender + " unsent a message";
+  }else{
+    if(m._replyMeta){
+      const q = document.createElement("div");
+      q.className = "reply-quote";
+      const qn = document.createElement("div");
+      qn.className = "rq-name";
+      qn.textContent = m._replyMeta.sender === currentUser ? "You" : m._replyMeta.sender;
+      const qt = document.createElement("div");
+      qt.className = "rq-text";
+      qt.textContent = m._replyMeta.text;
+      q.appendChild(qn); q.appendChild(qt);
+      bodyEl.appendChild(q);
+    }
+    const textSpan = document.createElement("span");
+    textSpan.textContent = m._bodyText;
+    bodyEl.appendChild(textSpan);
+    const burst = document.createElement("div");
+    burst.className = "reaction-burst";
+    bodyEl.appendChild(burst);
+  }
+
+  col.appendChild(bodyEl);
+
+  const metaRow = document.createElement("div");
+  metaRow.className = "msg-meta-row";
+  const timeEl = document.createElement("span");
+  timeEl.className = "msg-time";
+  timeEl.textContent = formatTime(m.timestamp);
+  metaRow.appendChild(timeEl);
+  if(m.edited && !m.unsent){
+    const tag = document.createElement("span");
+    tag.className = "msg-edited-tag";
+    tag.textContent = "edited";
+    metaRow.appendChild(tag);
+  }
+  col.appendChild(metaRow);
+
+  if(Object.keys(m.reactions).length && !m.unsent){
+    const chipRow = document.createElement("div");
+    chipRow.className = "reaction-row";
+    Object.keys(m.reactions).forEach(function(user){
+      const emoji = m.reactions[user];
+      const isMine = user === currentUser;
+      const chip = document.createElement("div");
+      chip.className = "reaction-chip" + (isMine ? " mine-chip" : "");
+      chip.textContent = emoji;
+      chip.title = isMine ? "Tap to remove" : user + " reacted";
+      if(isMine){
+        chip.addEventListener("click", function(ev){
+          ev.stopPropagation();
+          toggleReaction(m, emoji, idx);
+        });
+      }
+      chipRow.appendChild(chip);
+    });
+    col.appendChild(chipRow);
+  }
+
+  row.appendChild(swipeIcon);
+  row.appendChild(avatar);
+  row.appendChild(col);
+  return row;
 }
 
 /* ============================================================
@@ -800,13 +1391,24 @@ function updateConnectionStrip(text){
   if(el) el.textContent = text;
 }
 
+let netBadgeHideTimer = null;
 function setNetBadge(state, text){
   const badge = document.getElementById("net-badge");
   const label = document.getElementById("net-badge-text");
   badge.classList.remove("online","offline");
   badge.classList.add(state);
   badge.classList.add("show");
+  badge.classList.remove("persist");
   label.textContent = text;
+  if(netBadgeHideTimer){ clearTimeout(netBadgeHideTimer); netBadgeHideTimer = null; }
+  if(state === "online"){
+    // Connection is fine and the open room header already shows live status,
+    // so don't leave a floating pill sitting over the header controls.
+    netBadgeHideTimer = setTimeout(function(){ badge.classList.remove("show"); }, 1600);
+  }else{
+    // Disconnected / error states stay put — this is the one thing worth interrupting for.
+    badge.classList.add("persist");
+  }
 }
 
 function setStatusDot(state){
@@ -871,9 +1473,10 @@ function closeNewChatModal(){
 }
 
 let confirmResolve = null;
-function showConfirm(title, message){
+function showConfirm(title, message, yesLabel){
   document.getElementById("confirm-title").textContent = title;
   document.getElementById("confirm-message").textContent = message;
+  document.getElementById("confirm-yes").textContent = yesLabel || "Confirm";
   document.getElementById("confirm-modal").classList.add("show");
   return new Promise(function(resolve){
     confirmResolve = resolve;
