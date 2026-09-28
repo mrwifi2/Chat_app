@@ -28,7 +28,7 @@ from rooms import (
 
 
 init_db()
-print(f"[DB] Using database: {os.path.abspath('chat_app.db')}")
+print(f"[DB] Using database: {os.path.abspath('chat_app.db')}", flush=True)
 
 
 # ============================================================
