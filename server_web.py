@@ -17,7 +17,12 @@ from database import (
     remove_room_completely,
     edit_message,
     unsend_message,
-    set_reaction
+    set_reaction,
+    admin_list_users,
+    admin_create_user,
+    admin_change_password,
+    admin_change_username,
+    admin_delete_user,
 )
 
 from rooms import (
@@ -227,7 +232,7 @@ async def handler(websocket):
 
     current_user = None
     current_session_token = None
-
+    admin_authenticated = False
     try:
 
         async for message in websocket:

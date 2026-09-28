@@ -299,7 +299,70 @@ def remove_room_completely(room_id):
     cursor.execute("DELETE FROM memberships WHERE room_id=?", (room_id,))
     conn.commit()
     conn.close()
+def admin_list_users():
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute("SELECT username FROM users ORDER BY username")
+    rows = cursor.fetchall()
+    conn.close()
+    return [r[0] for r in rows]
 
+
+def admin_create_user(username, password):
+    try:
+        conn = _connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO users (username, password) VALUES (?, ?)",
+            (username, password)
+        )
+        conn.commit()
+        conn.close()
+        return True
+    except sqlite3.IntegrityError:
+        return False
+
+
+def admin_change_password(username, password):
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        "UPDATE users SET password=? WHERE username=?",
+        (password, username)
+    )
+    changed = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return changed
+
+
+def admin_change_username(old_username, new_username):
+    try:
+        conn = _connect()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE users SET username=? WHERE username=?",
+            (new_username, old_username)
+        )
+        changed = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return changed
+    except sqlite3.IntegrityError:
+        return False
+
+
+def admin_delete_user(username):
+    conn = _connect()
+    cursor = conn.cursor()
+    cursor.execute(
+        "DELETE FROM users WHERE username=?",
+        (username,)
+    )
+    deleted = cursor.rowcount > 0
+    conn.commit()
+    conn.close()
+    return deleted
 
 if __name__ == "__main__":
     init_db()
