@@ -364,6 +364,11 @@ def admin_change_username(old_username, new_username):
             (new_username, old_username)
         )
 
+        cursor.execute(
+            "UPDATE reactions SET username=? WHERE username=?",
+            (new_username, old_username)
+        )
+
         conn.commit()
         conn.close()
         return True

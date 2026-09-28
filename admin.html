@@ -156,10 +156,14 @@ function getWebSocketUrl(){
 
 function connect(){
 
+    if(ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
     ws = new WebSocket(getWebSocketUrl());
 
     ws.onopen = () => {
         setStatus("Connected.");
+        const ls = document.getElementById("login-status");
+        if(ls && !adminLoggedIn) ls.textContent = "";
     };
 
     ws.onmessage = (event) => {
@@ -189,7 +193,9 @@ function connect(){
             }else{
 
                 document.getElementById("login-status")
-                    .textContent = "Invalid admin password.";
+                    .textContent = data.reason === "disabled"
+                        ? "Server par ADMIN_PASSWORD set nahi hai."
+                        : "Invalid admin password.";
 
             }
 
@@ -225,6 +231,13 @@ function connect(){
 
     ws.onerror = () => {
         setStatus("Server connection failed.");
+        document.getElementById("login-status").textContent =
+            "Server connection failed (Render so raha ho sakta hai, thodi der baad try karo).";
+    };
+
+    ws.onclose = () => {
+        adminLoggedIn = false;
+        setTimeout(connect, 3000);
     };
 }
 
@@ -235,6 +248,15 @@ function adminLogin(){
         document.getElementById("admin-password").value;
 
     if(!password) return;
+
+    if(!ws || ws.readyState !== WebSocket.OPEN){
+        document.getElementById("login-status").textContent =
+            "Server se connect ho raha hai... 5-10 sec baad phir try karo.";
+        connect();
+        return;
+    }
+
+    document.getElementById("login-status").textContent = "Checking...";
 
     ws.send(JSON.stringify({
         type:"ADMIN_LOGIN",
@@ -373,6 +395,9 @@ function setStatus(text){
     document.getElementById("status").textContent = text;
 }
 
+
+document.getElementById("admin-password")
+    .addEventListener("keydown", e => { if(e.key === "Enter") adminLogin(); });
 
 connect();
 

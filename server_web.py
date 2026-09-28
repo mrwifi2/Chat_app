@@ -60,6 +60,26 @@ MAX_ROOM_USERS = 2
 ROOM_IDLE_TIMEOUT = 12 * 60
 
 
+# Admin panel password comes from the ADMIN_PASSWORD environment variable
+# (set it in Render -> Environment). If it's missing, admin login is disabled.
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+if not ADMIN_PASSWORD:
+    print("[!] ADMIN_PASSWORD env var is NOT set - admin panel login is disabled.", flush=True)
+
+
+async def kick_user_sessions(username):
+    """Invalidate every session of a user (used after rename/delete/password change)."""
+    for token in [t for t, info in SESSIONS.items() if info.get("username") == username]:
+        info = SESSIONS.pop(token, None)
+        ws = info.get("websocket") if info else None
+        if ws:
+            try:
+                await detach_socket_from_all_rooms(ws)
+                await ws.send(json.dumps({"type": "AUTH_REQUIRED"}))
+            except Exception:
+                pass
+
+
 # ============================================================
 # ROOM EXPIRY
 # ============================================================
@@ -620,6 +640,78 @@ async def handler(websocket):
             elif action == "PING":
 
                 await websocket.send(json.dumps({"type": "PONG"}))
+
+
+            # ==================================================
+            # 6f. ADMIN PANEL (admin.html)
+            # ==================================================
+
+            elif action == "ADMIN_LOGIN":
+
+                supplied = str(data.get("password", ""))
+
+                if ADMIN_PASSWORD and secrets.compare_digest(
+                    supplied.encode("utf-8"), ADMIN_PASSWORD.encode("utf-8")
+                ):
+                    admin_authenticated = True
+                    await websocket.send(json.dumps({
+                        "type": "ADMIN_LOGIN_RES", "status": "SUCCESS"
+                    }))
+                else:
+                    admin_authenticated = False
+                    await asyncio.sleep(1)  # slow down password guessing
+                    await websocket.send(json.dumps({
+                        "type": "ADMIN_LOGIN_RES", "status": "FAIL",
+                        "reason": "disabled" if not ADMIN_PASSWORD else "wrong_password"
+                    }))
+
+
+            elif action in (
+                "ADMIN_LIST_USERS", "ADMIN_CREATE_USER", "ADMIN_CHANGE_PASSWORD",
+                "ADMIN_CHANGE_USERNAME", "ADMIN_DELETE_USER"
+            ):
+
+                if not admin_authenticated:
+                    await websocket.send(json.dumps({"type": "ADMIN_REQUIRED"}))
+                    continue
+
+                if action == "ADMIN_LIST_USERS":
+                    await websocket.send(json.dumps({
+                        "type": "ADMIN_USERS", "users": admin_list_users()
+                    }))
+                    continue
+
+                ok = False
+
+                if action == "ADMIN_CREATE_USER":
+                    u = str(data.get("username", "")).strip()
+                    pw = str(data.get("password", ""))
+                    ok = bool(u and pw) and admin_create_user(u, pw)
+
+                elif action == "ADMIN_CHANGE_PASSWORD":
+                    u = str(data.get("username", "")).strip()
+                    pw = str(data.get("password", ""))
+                    ok = bool(u and pw) and admin_change_password(u, pw)
+                    if ok:
+                        await kick_user_sessions(u)
+
+                elif action == "ADMIN_CHANGE_USERNAME":
+                    old_u = str(data.get("old_username", "")).strip()
+                    new_u = str(data.get("new_username", "")).strip()
+                    ok = bool(old_u and new_u) and admin_change_username(old_u, new_u)
+                    if ok:
+                        await kick_user_sessions(old_u)
+
+                elif action == "ADMIN_DELETE_USER":
+                    u = str(data.get("username", "")).strip()
+                    ok = bool(u) and admin_delete_user(u)
+                    if ok:
+                        await kick_user_sessions(u)
+
+                await websocket.send(json.dumps({
+                    "type": "ADMIN_ACTION_RES",
+                    "status": "SUCCESS" if ok else "FAIL"
+                }))
 
 
             # ==================================================
