@@ -1,0 +1,7 @@
+{
+  "appName": "TeshTab",
+  "appId": "com.teshtab.app",
+  "mode": "bundled",
+  "remoteUrl": "https://teshtab.pages.dev",
+  "webFiles": ["index.html"]
+}

@@ -6,3 +6,9 @@ __pycache__/
 *.before_room_limit
 *.save
 project.zip
+app/node_modules/
+app/android/
+app/www/
+app/capacitor.config.json
+*.db
+__pycache__/

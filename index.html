@@ -495,11 +495,15 @@ let activeRoomId = null;
 /* ============================================================
    CONNECTION
    ============================================================ */
+const PROD_WS_URL = "wss://chat-app-fnl0.onrender.com";
 function getWebSocketUrl(){
-  if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){
+  // Inside the Android app the WebView reports hostname "localhost" too,
+  // so check for Capacitor first and always use the real server there.
+  const inApp = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  if(!inApp && (location.hostname==="localhost"||location.hostname==="127.0.0.1")){
     return "ws://"+location.hostname+":8000";
   }
-  return "wss://chat-app-fnl0.onrender.com";
+  return PROD_WS_URL;
 }
 
 function connect(){
