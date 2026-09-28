@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TESHTAB Admin</title>
+
+<style>
+*{box-sizing:border-box}
+body{
+    margin:0;
+    min-height:100vh;
+    background:#080b10;
+    color:#f5f7fa;
+    font-family:Arial,sans-serif;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+}
+.panel{
+    width:100%;
+    max-width:850px;
+    background:#11161e;
+    border:1px solid #252d38;
+    border-radius:20px;
+    padding:25px;
+    box-shadow:0 20px 60px rgba(0,0,0,.45);
+}
+h1{margin:0 0 5px}
+.sub{color:#8993a1;margin-bottom:25px}
+.hidden{display:none!important}
+
+input{
+    width:100%;
+    padding:13px;
+    margin:6px 0;
+    border-radius:10px;
+    border:1px solid #303947;
+    background:#0b0f15;
+    color:white;
+    outline:none;
+}
+
+button{
+    border:0;
+    border-radius:10px;
+    padding:11px 16px;
+    margin:5px 3px;
+    cursor:pointer;
+    background:#263142;
+    color:white;
+    font-weight:600;
+}
+button:hover{filter:brightness(1.2)}
+
+.primary{background:#2563eb}
+.danger{background:#b91c1c}
+
+.card{
+    background:#0c1118;
+    border:1px solid #252d38;
+    border-radius:14px;
+    padding:15px;
+    margin:12px 0;
+}
+
+.user-row{
+    display:grid;
+    grid-template-columns:1fr 1fr auto;
+    gap:8px;
+    align-items:center;
+}
+
+.status{
+    margin:10px 0;
+    min-height:20px;
+    color:#aeb7c4;
+}
+
+@media(max-width:650px){
+    .user-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<div class="panel">
+
+    <div id="login">
+        <h1>TESHTAB Admin</h1>
+        <div class="sub">Private administration panel</div>
+
+        <input
+            id="admin-password"
+            type="password"
+            placeholder="Admin password"
+            autocomplete="off"
+        >
+
+        <button class="primary" onclick="adminLogin()">
+            Login
+        </button>
+
+        <div id="login-status" class="status"></div>
+    </div>
+
+
+    <div id="dashboard" class="hidden">
+
+        <h1>TESHTAB Admin</h1>
+        <div class="sub">User management</div>
+
+        <div class="card">
+            <h3>Create user</h3>
+
+            <input id="new-user" placeholder="Username">
+            <input id="new-pass" type="password" placeholder="Password">
+
+            <button class="primary" onclick="createUser()">
+                Create User
+            </button>
+        </div>
+
+        <div class="card">
+            <h3>Users</h3>
+            <div id="users"></div>
+        </div>
+
+        <button onclick="loadUsers()">Refresh</button>
+        <button onclick="location.reload()">Logout</button>
+
+        <div id="status" class="status"></div>
+    </div>
+
+</div>
+
+<script>
+
+let ws = null;
+let adminLoggedIn = false;
+
+function getWebSocketUrl(){
+
+    if(
+        location.hostname === "localhost" ||
+        location.hostname === "127.0.0.1"
+    ){
+        return "ws://" + location.hostname + ":8001";
+    }
+
+    return "wss://chat-app-fnl0.onrender.com";
+}
+
+
+function connect(){
+
+    ws = new WebSocket(getWebSocketUrl());
+
+    ws.onopen = () => {
+        setStatus("Connected.");
+    };
+
+    ws.onmessage = (event) => {
+
+        let data;
+
+        try{
+            data = JSON.parse(event.data);
+        }catch{
+            return;
+        }
+
+        if(data.type === "ADMIN_LOGIN_RES"){
+
+            if(data.status === "SUCCESS"){
+
+                adminLoggedIn = true;
+
+                document.getElementById("login")
+                    .classList.add("hidden");
+
+                document.getElementById("dashboard")
+                    .classList.remove("hidden");
+
+                loadUsers();
+
+            }else{
+
+                document.getElementById("login-status")
+                    .textContent = "Invalid admin password.";
+
+            }
+
+            return;
+        }
+
+
+        if(data.type === "ADMIN_USERS"){
+
+            renderUsers(data.users || []);
+            return;
+        }
+
+
+        if(data.type === "ADMIN_ACTION_RES"){
+
+            if(data.status === "SUCCESS"){
+                setStatus("Action completed.");
+                loadUsers();
+            }else{
+                setStatus("Action failed.");
+            }
+
+            return;
+        }
+
+
+        if(data.type === "ADMIN_REQUIRED"){
+            setStatus("Admin authentication required.");
+        }
+    };
+
+
+    ws.onerror = () => {
+        setStatus("Server connection failed.");
+    };
+}
+
+
+function adminLogin(){
+
+    const password =
+        document.getElementById("admin-password").value;
+
+    if(!password) return;
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_LOGIN",
+        password:password
+    }));
+}
+
+
+function loadUsers(){
+
+    if(!adminLoggedIn) return;
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_LIST_USERS"
+    }));
+}
+
+
+function createUser(){
+
+    const username =
+        document.getElementById("new-user").value.trim();
+
+    const password =
+        document.getElementById("new-pass").value;
+
+    if(!username || !password){
+        setStatus("Username and password required.");
+        return;
+    }
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_CREATE_USER",
+        username:username,
+        password:password
+    }));
+
+    document.getElementById("new-user").value="";
+    document.getElementById("new-pass").value="";
+}
+
+
+function changePassword(username){
+
+    const password = prompt(
+        "New password for " + username + ":"
+    );
+
+    if(!password) return;
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_CHANGE_PASSWORD",
+        username:username,
+        password:password
+    }));
+}
+
+
+function changeUsername(username){
+
+    const newUsername = prompt(
+        "New username for " + username + ":"
+    );
+
+    if(!newUsername || newUsername === username) return;
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_CHANGE_USERNAME",
+        old_username:username,
+        new_username:newUsername
+    }));
+}
+
+
+function deleteUser(username){
+
+    if(!confirm(
+        'Delete user "' + username + '"?'
+    )) return;
+
+    ws.send(JSON.stringify({
+        type:"ADMIN_DELETE_USER",
+        username:username
+    }));
+}
+
+
+function renderUsers(users){
+
+    const container =
+        document.getElementById("users");
+
+    container.innerHTML = "";
+
+    if(!users.length){
+        container.innerHTML = "<div>No users found.</div>";
+        return;
+    }
+
+    users.forEach(username => {
+
+        const row = document.createElement("div");
+        row.className = "user-row";
+
+        row.innerHTML = `
+            <strong>${escapeHtml(username)}</strong>
+            <button onclick="changePassword(${JSON.stringify(username)})">
+                Change Password
+            </button>
+            <div>
+                <button onclick="changeUsername(${JSON.stringify(username)})">
+                    Rename
+                </button>
+                <button class="danger"
+                    onclick="deleteUser(${JSON.stringify(username)})">
+                    Delete
+                </button>
+            </div>
+        `;
+
+        container.appendChild(row);
+    });
+}
+
+
+function escapeHtml(value){
+
+    const div = document.createElement("div");
+    div.textContent = value;
+    return div.innerHTML;
+}
+
+
+function setStatus(text){
+
+    document.getElementById("status").textContent = text;
+}
+
+
+connect();
+
+</script>
+
+</body>
+</html>

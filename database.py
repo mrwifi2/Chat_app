@@ -337,18 +337,40 @@ def admin_change_password(username, password):
 
 
 def admin_change_username(old_username, new_username):
+    if not old_username or not new_username:
+        return False
+
+    conn = _connect()
+    cursor = conn.cursor()
+
     try:
-        conn = _connect()
-        cursor = conn.cursor()
         cursor.execute(
             "UPDATE users SET username=? WHERE username=?",
             (new_username, old_username)
         )
-        changed = cursor.rowcount > 0
+
+        if cursor.rowcount == 0:
+            conn.rollback()
+            conn.close()
+            return False
+
+        cursor.execute(
+            "UPDATE memberships SET username=? WHERE username=?",
+            (new_username, old_username)
+        )
+
+        cursor.execute(
+            "UPDATE messages SET sender=? WHERE sender=?",
+            (new_username, old_username)
+        )
+
         conn.commit()
         conn.close()
-        return changed
+        return True
+
     except sqlite3.IntegrityError:
+        conn.rollback()
+        conn.close()
         return False
 
 
