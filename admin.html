@@ -361,22 +361,26 @@ function renderUsers(users){
         const row = document.createElement("div");
         row.className = "user-row";
 
-        row.innerHTML = `
-            <strong>${escapeHtml(username)}</strong>
-            <button onclick="changePassword(${JSON.stringify(username)})">
-                Change Password
-            </button>
-            <div>
-                <button onclick="changeUsername(${JSON.stringify(username)})">
-                    Rename
-                </button>
-                <button class="danger"
-                    onclick="deleteUser(${JSON.stringify(username)})">
-                    Delete
-                </button>
-            </div>
-        `;
+        const name = document.createElement("strong");
+        name.textContent = username;
 
+        const pwBtn = document.createElement("button");
+        pwBtn.textContent = "Change Password";
+        pwBtn.addEventListener("click", () => changePassword(username));
+
+        const actions = document.createElement("div");
+
+        const renameBtn = document.createElement("button");
+        renameBtn.textContent = "Rename";
+        renameBtn.addEventListener("click", () => changeUsername(username));
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "danger";
+        delBtn.textContent = "Delete";
+        delBtn.addEventListener("click", () => deleteUser(username));
+
+        actions.append(renameBtn, delBtn);
+        row.append(name, pwBtn, actions);
         container.appendChild(row);
     });
 }
